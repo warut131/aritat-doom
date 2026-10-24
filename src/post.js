@@ -31,6 +31,7 @@ export function createPost(renderer, scene, camera, quality) {
     render(dt) { composer.render(dt); },
     setBright(b) { bloom.intensity = 1.1 * b; },
     hit(k) { ca.offset.set(0.0007 + k * 0.006, 0.0005 + k * 0.004); },
+    zed(k) { grade.saturation = 0.18 - 0.8 * k; vign.darkness = 0.45 + 0.4 * k; contrast.contrast = 0.12 + 0.12 * k; },
     dispose() { composer.dispose(); },
   };
 }

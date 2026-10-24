@@ -194,7 +194,7 @@ function wingGeometry() { // bat membrane: fan of 4 fingers
 }
 
 const hitMat = new THREE.MeshBasicMaterial({ visible: false });
-const VARIANT = { tabby: 'base', kitten: 'base', siamese: 'lean', black: 'brute', khao: 'base', korat: 'brute', persian: 'fluffy', bat: 'lean', boss: 'fluffy', dog: 'dog' };
+const VARIANT = { tabby: 'base', kitten: 'base', siamese: 'lean', black: 'brute', khao: 'base', korat: 'brute', persian: 'fluffy', bat: 'lean', boss: 'fluffy', dog: 'dog', bossDog: 'dog' };
 
 // ---------------- the cat object ----------------
 export function makeCat(type, C, opts = {}) {

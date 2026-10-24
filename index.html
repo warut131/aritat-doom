@@ -273,6 +273,33 @@ body.touch #magNum{font-size:40px}
 .card.r-l{box-shadow:0 0 18px rgba(255,176,32,.25)}.card.r-x{box-shadow:0 0 18px rgba(192,112,255,.25);background:linear-gradient(180deg,#24162e,#160e1c)!important}
 .card.r-g{box-shadow:0 0 18px rgba(155,225,93,.25);background:linear-gradient(180deg,#1c2614,#11180c)!important}
 #rerollBtn:disabled{opacity:.45;cursor:not-allowed}
+
+#zed{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .25s;background:radial-gradient(ellipse at center,transparent 45%,rgba(20,40,80,.5) 100%)}
+#zed.on{opacity:1}
+#zed b{position:absolute;top:calc(env(safe-area-inset-top,0px) + 92px);left:50%;transform:translateX(-50%);font:400 22px var(--font-num);letter-spacing:.3em;color:#bfe4ff;text-shadow:0 0 14px rgba(120,190,255,.8)}
+#tAbility{width:54px;height:54px;right:calc(max(18px,env(safe-area-inset-right,0px)) + 76px);bottom:calc(env(safe-area-inset-bottom,0px) + 300px);background:rgba(120,90,255,.4)!important}
+.chip.ab{border-color:#c8a8ff}.chip.ab.ok{box-shadow:0 0 10px rgba(200,168,255,.4)}
+.charpick{display:grid;gap:8px;margin:6px 0 4px}
+.cp-head{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+.cp-head h3{margin:0;font:700 18px var(--font-th);color:var(--ember)}
+.cp-head .field input{width:150px;font-size:15px;padding:6px 8px}
+.chars{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:8px}
+.ch{display:grid;gap:3px;align-content:start;background:#140c0b;border:2px solid #3a2420;border-radius:8px;padding:10px;position:relative}
+.ch.sel{border-color:var(--cc);box-shadow:0 0 16px color-mix(in srgb,var(--cc) 35%,transparent)}
+.ch.locked{opacity:.78}
+.ch .ci{font-size:28px;line-height:1}
+.ch>b{font:700 16px var(--font-th);color:var(--cc)}
+.ch small{font-size:12px;color:var(--ash)}
+.ch p{margin:2px 0;font-size:12px;line-height:1.4;color:var(--bone)}
+.ch p.ac{color:#d8c8ff}.ch p.ac kbd{font-size:10px}
+.ch button{justify-self:start;margin-top:4px;padding:6px 12px;font-size:13px}
+.ch button:disabled{opacity:.5;cursor:default}
+.lbt{width:100%;border-collapse:collapse;font-size:15px}
+.lbt th{text-align:left;font:700 13px var(--font-th);color:var(--ash);border-bottom:1px solid #4a2c26;padding:6px 8px}
+.lbt td{padding:6px 8px;border-bottom:1px solid #2a1a17}
+.lbt tr.me td{background:rgba(255,154,58,.12);color:#ffd9a8}
+#lbBody{max-height:56vh;overflow:auto}
+.b.tab.on{background:var(--blood);color:#fff}
 </style>
 </head>
 <body>
@@ -282,12 +309,13 @@ body.touch #magNum{font-size:40px}
 <div id="bz"></div><div id="bzT"></div>
 <div id="scope" hidden><i></i><b>คลิกขวาค้างเพื่อเล็ง · ปล่อยเพื่อออก</b></div>
 <div id="glow"></div>
+<div id="zed"><b>ZED TIME</b></div>
 <div id="vig"></div>
 
 <div id="hud" hidden>
   <div id="cross"><i class="h l"></i><i class="h r"></i><i class="v t"></i><i class="v b"></i><i class="dot"></i></div>
   <div id="hitm"></div>
-  <div id="gk">F · กลอรี่คิล</div>
+  <div id="gk">F · กลอรี่คิล (เติมกระสุนเต็มแม็ก)</div>
   <div id="dmgdir"></div>
   <div id="revive" hidden></div>
   <div id="downMsg" hidden>ล้มแล้ว!<small>ให้เพื่อนมายืนข้างๆ 3 วินาทีเพื่อช่วยลุก</small></div>
@@ -319,7 +347,7 @@ body.touch #magNum{font-size:40px}
 </div>
 
 <div id="touch" hidden>
-  <button id="tFire">ยิง</button><button id="tJump">โดด</button><button id="tDash">แดช</button><button id="tMelee">ฟาด</button><button id="tSwap">ปืน</button><button id="tReload">R</button><button id="tZoom">ซูม</button><button id="tCoin">เหรียญ</button><button id="tPause">❚❚</button>
+  <button id="tFire">ยิง</button><button id="tJump">โดด</button><button id="tDash">แดช</button><button id="tMelee">ฟาด</button><button id="tSwap">ปืน</button><button id="tReload">R</button><button id="tAbility">G</button><button id="tZoom">ซูม</button><button id="tCoin">เหรียญ</button><button id="tPause">❚❚</button>
 </div>
 
 <div id="menu" class="overlay">
@@ -347,9 +375,11 @@ body.touch #magNum{font-size:40px}
       <button class="b alt" id="musicBtn">เพลง: เปิด</button>
       <label class="sens" for="bright">ความสว่าง <input type="range" id="bright" min="0.4" max="2.2" step="0.05" value="1"></label>
     </div>
+    <div class="charpick"><div class="cp-head"><h3>เลือกตัวละคร</h3><label class="field" for="pname">ชื่อในตารางอันดับ <input id="pname" maxlength="14" autocomplete="off" placeholder="Aritat"></label></div><div id="charList" class="chars"></div></div>
     <div class="btns">
       <button class="b" id="startBtn">ลงนรก</button>
       <button class="b" id="coopBtn">เล่นออนไลน์ (สูงสุด 6 คน)</button>
+      <button class="b alt" id="lbBtn">🏆 อันดับผู้เล่น</button>
       <button class="b alt" id="shopBtn">ร้านอัปเกรด <span class="coins" id="menuCoins"></span></button>
     </div>
     <p class="hint">เปิดเสียงด้วยจะมันกว่า · มือถือ: ลากจอซ้ายเพื่อเดิน ลากจอขวาเพื่อหัน · กด M ปิดเสียงทั้งหมด</p>
@@ -389,6 +419,15 @@ body.touch #magNum{font-size:40px}
     <p id="coopStatus" class="status"></p>
     <div class="btns"><button class="b alt" id="coopBack">กลับหน้าแรก</button></div>
     <p class="hint">ทุกคนต้องเปิดเกมจากเว็บเดียวกัน · ถ้าต่อไม่ติดลองเปลี่ยนเน็ต บางเครือข่ายบล็อกการต่อตรง · <button class="linkbtn" id="localTest">โหมดทดสอบหลายแท็บในเครื่องเดียว</button></p>
+  </div>
+</div>
+
+<div id="lb" class="overlay" hidden>
+  <div class="panel">
+    <h2>อันดับผู้เล่น</h2>
+    <div class="btns"><button class="b alt tab" id="lbTabG">ทุกคน</button><button class="b alt tab" id="lbTabL">ของฉัน</button></div>
+    <div id="lbBody"></div>
+    <div class="btns"><button class="b" id="lbBack">กลับ</button></div>
   </div>
 </div>
 
