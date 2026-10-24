@@ -1023,7 +1023,7 @@ function renderChars(){const box=$('#charList');if(!box)return;box.innerHTML='';
   d.appendChild(b);box.appendChild(d);}
  const pn=$('#pname');if(pn&&document.activeElement!==pn)pn.value=save.name||'';}
 const lbOn=()=>!!(LEADERBOARD.url&&LEADERBOARD.key);
-const lbHeaders=()=>({apikey:LEADERBOARD.key,Authorization:'Bearer '+LEADERBOARD.key,'Content-Type':'application/json'});
+const lbHeaders=()=>Object.assign({apikey:LEADERBOARD.key,'Content-Type':'application/json'},LEADERBOARD.key.startsWith('sb_')?{}:{Authorization:'Bearer '+LEADERBOARD.key});
 function recordScore(){if(!P||wave<1)return;const en={name:myName(),wave,kills,char:save.char,mode:NET.mode?'coop':'solo',acc:accPct()};
  save.hist.push(Object.assign({t:Date.now()},en));save.hist.sort((a,b)=>b.wave-a.wave||b.kills-a.kills);save.hist=save.hist.slice(0,20);persist();
  if(lbOn())fetch(LEADERBOARD.url.replace(/\/$/,'')+'/rest/v1/scores',{method:'POST',headers:Object.assign({Prefer:'return=minimal'},lbHeaders()),body:JSON.stringify(en)}).catch(()=>{});}
