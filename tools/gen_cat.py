@@ -41,6 +41,8 @@ def cat_params(kind):
         P.update(body_w=0.86, body_h=0.92, leg_len=1.1, leg_th=0.85, head_r=0.145, ear=1.3, ear_w=1.1, tail_r=0.8, muzzle=1.15, neck=1.1)
     if kind == 'fluffy': # persian / boss: big, fluffy, small ears, flat face
         P.update(body_w=1.25, body_h=1.12, leg_len=0.9, leg_th=1.35, head_r=0.175, ear=0.7, tail_r=1.9, fluff=1.0, muzzle=0.6, belly_drop=0.03)
+    if kind == 'dog':    # Thai soi dog: lean, long legs, long snout, big upright ears, curled thin tail
+        P.update(body_w=0.92, body_h=0.95, leg_len=1.22, leg_th=1.05, head_r=0.14, ear=1.35, ear_w=1.25, tail_r=0.75, muzzle=2.3, neck=1.15)
     if kind == 'brute':  # korat / black: muscular
         P.update(body_w=1.12, body_h=1.05, leg_len=1.0, leg_th=1.25, head_r=0.16, ear=1.05, tail_r=1.1, muzzle=1.0)
     return P
@@ -255,12 +257,17 @@ def attachments(P, B, sdf):
     return A
 
 def main():
+    import sys
+    only = sys.argv[1:]
     meta = {}; blob = bytearray()
+    if only:  # append to the existing pack
+        meta = json.load(open(os.path.join(OUT, 'cats.json'))); blob = bytearray(open(os.path.join(OUT, 'cats.bin'), 'rb').read())
     def push(arr):
         nonlocal blob
         while len(blob) % 4: blob.append(0)
         off = len(blob); blob += arr.tobytes(); return off
-    for kind, tgt in (('base', 6500), ('lean', 6000), ('fluffy', 7500), ('brute', 6800)):
+    kinds = (('base', 6500), ('lean', 6000), ('fluffy', 7500), ('brute', 6800), ('dog', 6800))
+    for kind, tgt in [k for k in kinds if not only or k[0] in only]:
         P, B, tp, v, f, n, sdf = make_mesh(kind, target=tgt)
         idx, w = skin(v, B)
         M = masks(v, n, B, sdf, P)

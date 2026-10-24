@@ -194,7 +194,7 @@ function wingGeometry() { // bat membrane: fan of 4 fingers
 }
 
 const hitMat = new THREE.MeshBasicMaterial({ visible: false });
-const VARIANT = { tabby: 'base', kitten: 'base', siamese: 'lean', black: 'brute', khao: 'base', korat: 'brute', persian: 'fluffy', bat: 'lean', boss: 'fluffy' };
+const VARIANT = { tabby: 'base', kitten: 'base', siamese: 'lean', black: 'brute', khao: 'base', korat: 'brute', persian: 'fluffy', bat: 'lean', boss: 'fluffy', dog: 'dog' };
 
 // ---------------- the cat object ----------------
 export function makeCat(type, C, opts = {}) {
@@ -274,7 +274,7 @@ export function makeCat(type, C, opts = {}) {
     }
   }
   // hit boxes (follow the bones, invisible)
-  const bw = { base: 1, lean: 0.86, fluffy: 1.25, brute: 1.12 }[VARIANT[type] || 'base'];
+  const bw = { base: 1, lean: 0.86, fluffy: 1.25, brute: 1.12, dog: 0.92 }[VARIANT[type] || 'base'];
   const body = new THREE.Mesh(Gs.box, hitMat); body.scale.set(0.42 * bw, 0.42, 0.95); body.position.set(0, 0.0, 0.05); B.spine.add(body);
   const headHit = new THREE.Mesh(Gs.sph, hitMat); headHit.scale.setScalar(att.headR * 1.35); headHit.position.set(0, 0.02, 0.04); B.head.add(headHit);
   if (type === 'kitten') B.head.scale.setScalar(1.35);
@@ -282,7 +282,7 @@ export function makeCat(type, C, opts = {}) {
 
   const cat = {
     g, inner, mesh, body, head: headHit, hg: B.head, bones: B, wings, mats, eyeMat, eyes, U: fur.userData.U,
-    phase: Math.random() * 10, gait: 0, anim: animCat, setHurt(f) { this.U.uBlood.value = f; }, setFlash(k) { this.U.uFlash.value = k; }, setGlow(k) { this.U.uGlow.value = k; },
+    phase: Math.random() * 10, gait: 0, anim: animCat, setHurt(f) { this.U.uBlood.value = f; }, setFlash(k) { this.U.uFlash.value = k; }, setGlow(k) { this.U.uGlow.value = k; }, setXray(on) { setXray(this, on); },
   };
   return cat;
 }
@@ -378,4 +378,19 @@ function animCat(dt, o) {
   }
 }
 
+// see-through highlight: an additive copy of every visible mesh, drawn on top of the world
+export const XRAY_MAT = new THREE.MeshBasicMaterial({ color: 0xff6a1a, transparent: true, opacity: 0.42, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+export function setXray(obj, on) {
+  if (!!obj._xray === on) return;
+  if (on) {
+    obj._xray = [];
+    obj.g.traverse(m => {
+      if (!m.isMesh || m._isXray || (m.material && m.material.visible === false)) return;
+      let o;
+      if (m.isSkinnedMesh) { o = new THREE.SkinnedMesh(m.geometry, XRAY_MAT); o.bind(m.skeleton, m.bindMatrix); }
+      else o = new THREE.Mesh(m.geometry, XRAY_MAT);
+      o._isXray = true; o.renderOrder = 999; o.frustumCulled = false; o.castShadow = false; m.add(o); obj._xray.push(o);
+    });
+  } else { for (const o of obj._xray) o.parent && o.parent.remove(o); obj._xray = null; }
+}
 export { VARIANT };

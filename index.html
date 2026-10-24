@@ -215,6 +215,64 @@ label.sens input{flex:1;min-width:0;accent-color:var(--blood)}
 #chatBar{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:120px;width:min(420px,80vw)}
 #chatBar input{width:100%;font:600 15px var(--font-ui);background:rgba(10,4,4,.85);color:var(--bone);border:1px solid var(--ember);border-radius:4px;padding:7px 9px}
 body.touch #mates{top:calc(env(safe-area-inset-top,0px) + 236px)}
+
+/* ===== HUD v3 ===== */
+#vitals{position:absolute;left:max(18px,env(safe-area-inset-left,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));width:min(330px,40vw);display:grid;gap:7px;pointer-events:none}
+.vrow{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:end}
+.vrow b{grid-row:1/3;font:400 46px/0.9 var(--font-num);color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.8);min-width:2.2ch;text-align:right}
+.vrow.ar b{font-size:24px;color:#a8dcff}
+.vlab{grid-column:2;grid-row:1;font:700 12px var(--font-th);color:rgba(255,255,255,.7);text-shadow:0 1px 3px #000}
+.vbar{grid-column:2;grid-row:2;position:relative;height:13px;background:rgba(12,6,6,.6);border-radius:7px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 2px 10px rgba(0,0,0,.4)}
+.vrow.ar .vbar{height:7px}
+.vbar i{position:absolute;inset:0;transform-origin:left;border-radius:7px}
+#hpFill{background:linear-gradient(90deg,#d8202a,#ff6a3a 70%,#ffb05a);transition:transform .1s}
+#hpGhost{background:rgba(255,255,255,.35);transition:transform .7s .25s}
+#arFill{background:linear-gradient(90deg,#2a8aff,#9fe0ff)}
+#vitals.low .vrow.hp b{color:#ff4a3a;animation:hudPulse .45s infinite alternate}
+#chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;background:rgba(14,8,8,.62);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:3px 10px 3px 4px;font:700 12px var(--font-th);color:#f1e3cf;position:relative;overflow:hidden;white-space:nowrap}
+.chip kbd{font:700 11px var(--font-ui);background:rgba(255,255,255,.16);border-radius:999px;padding:1px 7px;color:#fff}
+.chip em{font-style:normal;color:#ffd166;letter-spacing:1px}
+.chip.cd{opacity:.55}.chip.ok{border-color:#ffd166}.chip.hot{border-color:#ff5a3a;color:#ffb08a}
+.chip .cdf{position:absolute;left:0;bottom:0;height:2px;background:#ffb35c}
+#weap{position:absolute;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));display:grid;justify-items:end;gap:6px;pointer-events:none;max-width:48vw}
+#wName{font:700 17px var(--font-th);color:#ffb35c;text-shadow:0 2px 6px #000}
+.wammo{display:flex;align-items:baseline;gap:8px}
+#magNum{font:400 60px/0.85 var(--font-num);color:#fff;text-shadow:0 3px 14px rgba(0,0,0,.8)}
+#magNum.low{color:#ff4a3a}
+#resNum{font:400 22px var(--font-num);color:rgba(255,255,255,.62);font-style:normal;text-shadow:0 2px 6px #000}
+#magPips{display:flex;gap:2px;justify-content:flex-end;flex-wrap:wrap;max-width:260px}
+#magPips i{width:5px;height:12px;border-radius:1px;background:#ffd166;box-shadow:0 0 5px rgba(255,200,80,.55)}
+#magPips i.e{background:rgba(255,255,255,.16);box-shadow:none}
+#magPips.big i{width:10px;height:17px;border-radius:2px}
+#magPips.fuel i{width:9px;height:9px;background:#ff8a3a;box-shadow:0 0 6px rgba(255,120,40,.6)}
+#rldBar{width:190px;height:17px;position:relative;background:rgba(12,6,6,.65);border-radius:9px;overflow:hidden;display:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+#rldBar.on{display:block}
+#rldFill{position:absolute;inset:0;background:linear-gradient(90deg,#ff7a1a,#ffd166);transform-origin:left;transform:scaleX(0)}
+#rldBar span{position:relative;display:block;text-align:center;font:700 11px/17px var(--font-th);color:#fff;text-shadow:0 1px 2px #000}
+#slots{display:flex;gap:5px}
+#slots div{display:grid;justify-items:center;min-width:46px;padding:3px 7px 4px;border-radius:8px;background:rgba(14,8,8,.6);border:1px solid rgba(255,255,255,.12);font:700 10px var(--font-th);color:rgba(255,255,255,.6);white-space:nowrap}
+#slots div b{font:400 15px/1.1 var(--font-num);color:rgba(255,255,255,.8)}
+#slots div.cur{border-color:#ffb35c;background:rgba(90,34,10,.78);color:#ffd9a8;box-shadow:0 0 12px rgba(255,140,40,.35)}
+#slots div.cur b{color:#ffb35c}
+#slots div.lock{opacity:.32}
+#slots div.empty b{color:#ff5a4a}
+#ammoWarn{position:fixed;left:50%;top:calc(50% + 48px);transform:translateX(-50%);font:700 15px var(--font-th);color:#ffd166;text-shadow:0 2px 4px #000;opacity:0;transition:opacity .15s;white-space:nowrap;pointer-events:none}
+#arrows i{position:fixed;display:none;width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-bottom:20px solid #ff6a1a;filter:drop-shadow(0 0 6px #ff3a00);pointer-events:none}
+@keyframes hudPulse{to{opacity:.55}}
+#chatHud{bottom:190px}#chatBar{bottom:160px}
+#tReload{width:50px;height:50px;right:calc(max(18px,env(safe-area-inset-right,0px)) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 274px)}
+body.touch #slots{display:none}
+body.touch #vitals{width:min(250px,38vw)}
+body.touch .vrow b{font-size:34px}
+body.touch #weap{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 70px)}
+body.touch #magNum{font-size:40px}
+@media (max-width:640px){.vrow b{font-size:34px}#magNum{font-size:42px}#slots div{min-width:34px;padding:2px 4px}#slots div span{display:none}}
+.card{border-color:var(--rc,#4a2c26)!important;position:relative}
+.card .rar{position:absolute;top:8px;right:10px;font:700 11px var(--font-th);color:var(--rc);letter-spacing:.04em}
+.card.r-l{box-shadow:0 0 18px rgba(255,176,32,.25)}.card.r-x{box-shadow:0 0 18px rgba(192,112,255,.25);background:linear-gradient(180deg,#24162e,#160e1c)!important}
+.card.r-g{box-shadow:0 0 18px rgba(155,225,93,.25);background:linear-gradient(180deg,#1c2614,#11180c)!important}
+#rerollBtn:disabled{opacity:.45;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -239,24 +297,29 @@ body.touch #mates{top:calc(env(safe-area-inset-top,0px) + 236px)}
   <form id="chatBar" hidden autocomplete="off"><input id="chatBarIn" maxlength="120" placeholder="แชต… (Enter ส่ง · Esc ยกเลิก)"></form>
   <div id="streak"></div>
   <div id="topc"><div id="wave">WAVE 1</div><div id="left"></div><div id="bossbar" hidden><span>ราชาแมวนรก</span><div><div id="bossfill"></div></div></div></div>
-  <div id="tl"><span id="kills">☠ 0</span><span class="c" id="coinHud">🪙 0</span><span id="coinCh"></span><span id="sharpBadge" hidden>◎ โหมดมือแม่น</span></div>
+  <div id="tl"><span id="kills">☠ 0</span><span class="c" id="coinHud">🪙 0</span><span id="sharpBadge" hidden>◎ โหมดมือแม่น</span></div>
   <div id="style"><b id="rank">D</b><div class="sbar"><i id="sfill"></i></div><span id="smul"></span><div id="sevents"></div></div>
   <div id="feed"></div>
   <div id="banner"></div>
   <div id="hint" hidden></div>
-  <div id="dbar">
-    <div class="seg"><b id="ammoBig">24</b><span>กระสุน</span></div>
-    <div class="seg"><b id="hpBig">100%</b><span>พลังชีวิต</span></div>
-    <div class="seg face"><canvas id="face" width="32" height="32"></canvas></div>
-    <div class="seg"><b id="arBig">0%</b><span>เกราะ</span></div>
-    <div class="grow"></div>
-    <div class="seg" id="arms"></div>
-    <div class="seg" id="atable"></div>
+  <div id="vitals">
+    <div class="vrow hp"><b id="hpNum">100</b><span class="vlab">พลังชีวิต</span><div class="vbar"><i id="hpGhost"></i><i id="hpFill"></i></div></div>
+    <div class="vrow ar"><b id="arNum">0</b><span class="vlab">เกราะ</span><div class="vbar"><i id="arFill"></i></div></div>
+    <div id="chips"></div>
   </div>
+  <div id="weap">
+    <div id="wName">ดีเซิร์ทอีเกิล .50</div>
+    <div class="wammo"><b id="magNum">7</b><em id="resNum">/ ∞</em></div>
+    <div id="magPips"></div>
+    <div id="rldBar"><i id="rldFill"></i><span>กำลังรีโหลด…</span></div>
+    <div id="slots"></div>
+  </div>
+  <div id="ammoWarn"></div>
+  <div id="arrows"></div>
 </div>
 
 <div id="touch" hidden>
-  <button id="tFire">ยิง</button><button id="tJump">โดด</button><button id="tDash">แดช</button><button id="tMelee">ฟาด</button><button id="tSwap">ปืน</button><button id="tZoom">ซูม</button><button id="tCoin">เหรียญ</button><button id="tPause">❚❚</button>
+  <button id="tFire">ยิง</button><button id="tJump">โดด</button><button id="tDash">แดช</button><button id="tMelee">ฟาด</button><button id="tSwap">ปืน</button><button id="tReload">R</button><button id="tZoom">ซูม</button><button id="tCoin">เหรียญ</button><button id="tPause">❚❚</button>
 </div>
 
 <div id="menu" class="overlay">
@@ -264,19 +327,20 @@ body.touch #mates{top:calc(env(safe-area-inset-top,0px) + 236px)}
     <h1>Aritat ซอยนรก<small>ประตูนรกเปิดกลางซอย ๗ แมวทุกตัวโดนสิง เหลือ Aritat คนเดียวที่ยังถือปืน</small></h1>
     <p>ยิงให้กระจุย เข้าไปฟาดตอนแมวเรืองแสงส้มเพื่อกลอรี่คิลเอาเลือดคืน เก็บกระสุนที่หล่นจากศพ ยิงถังแก๊สหุงต้มให้ระเบิดใส่ฝูง ทุก 5 เวฟราชาแมวนรกจะขึ้นมาเอง ตายแล้วเหรียญยังอยู่ไว้ซื้อของถาวร</p>
     <div class="guns">
-      <div><b>1 · ลูกซองสองลำกล้อง</b>ระยะประชิด แมวแตกเป็นชิ้น</div>
-      <div><b>2 · ปืนกลรัวนรก</b>หมุนลำกล้องแล้วสาดไม่ยั้ง</div>
-      <div><b>3 · จรวดปลาทู</b>ระเบิดวงกว้าง ใช้กระโดดจรวดได้</div>
-      <div><b>4 · ปืนพลาสม่า</b>ลูกไฟฟ้าสีฟ้า ยิงไว</div>
-      <div><b>5 · ไรเฟิลซุ่มยิง</b>ซูมได้ ทะลุทั้งแถว ยิงหัวตายเลย</div>
-      <div><b>6 · ปืนน้ำมนต์หลวงพ่อ</b>ลูกบอลศักดิ์สิทธิ์ ช็อตแมวทั้งซอย ใช้พลาสม่า 40</div>
+      <div><b>1 · ดีเซิร์ทอีเกิล .50</b>ปืนพกกระสุนไม่จำกัด ยิงหัวแรง</div>
+      <div><b>2 · ลูกซองสองลำกล้อง</b>ประชิดตัว แมวแตกเป็นชิ้น</div>
+      <div><b>3 · AK-47</b>อัตโนมัติ 30 นัด ทะลุ 1 ตัว</div>
+      <div><b>4 · เอ็ม 79</b>ยิงลูกระเบิดโค้ง ระเบิดเมื่อกระทบ</div>
+      <div><b>5 · บาร์เรตต์ .50</b>สไนเปอร์ทะลุทั้งแถว ไม่สนเกราะ</div>
+      <div><b>6 · ปืนพ่นไฟ</b>ย่างทั้งฝูง ไฟลุกลามไปตัวข้างๆ</div>
     </div>
+    <p class="hint">เริ่มรอบด้วยปืน 1–2 ปืนอื่นได้จากการ์ดตอนจบเวฟ หรือซื้อถาวรในร้าน</p>
     <div class="keys">
       <span><kbd>WASD</kbd>เดิน</span><span><kbd>เมาส์</kbd>เล็ง / คลิกยิง</span><span><kbd>Space</kbd>กระโดด</span>
-      <span><kbd>Shift</kbd>แดช</span><span><kbd>F</kbd>ฟาด · กลอรี่คิล</span><span><kbd>1–5</kbd> / ล้อเมาส์ เปลี่ยนปืน</span>
+      <span><kbd>Shift</kbd>แดช</span><span><kbd>F</kbd>ฟาด · กลอรี่คิล</span><span><kbd>1–6</kbd> / ล้อเมาส์ เปลี่ยนปืน</span><span><kbd>R</kbd>รีโหลด</span>
       <span><kbd>คลิกขวา</kbd>เล็ง / ซูม</span><span><kbd>C</kbd> / คลิกกลาง โยนเหรียญ</span>
     </div>
-    <p class="tips"><b>สำหรับมือแม่น:</b> โยนเหรียญสิบบาทขึ้นฟ้าแล้วยิงให้โดน กระสุนจะเด้งเข้าหัวแมวที่ใกล้ที่สุดแรงกว่าเดิมหลายเท่า โยนหลายเหรียญแล้วยิงต่อกันได้ · ยิงหัวติดกันดาเมจเพิ่มเรื่อยๆ · แรงค์สไตล์ D ถึง SSS ยิ่งสูงยิ่งได้เหรียญเยอะ · สีสวาดหุ้มเกราะ ยิงตัวเบา ยิงหัวแรง</p>
+    <p class="tips"><b>สำหรับมือแม่น:</b> โยนเหรียญสิบบาทขึ้นฟ้าแล้วยิงให้โดน กระสุนจะเด้งเข้าหัวศัตรูที่ใกล้ที่สุดแรงกว่าเดิมหลายเท่า โยนหลายเหรียญแล้วยิงต่อกันได้ · ยิงหัวติดกันดาเมจเพิ่มเรื่อยๆ · แรงค์สไตล์ D ถึง SSS ยิ่งสูงยิ่งได้เหรียญเยอะ · สีสวาดหุ้มเกราะ ยิงตัวเบา ยิงหัวแรง</p>
     <div class="opts">
       <button class="b alt" id="sharpBtn">โหมดมือแม่น: ปิด</button>
       <button class="b alt" id="qBtn">กราฟิก: สูง</button>
@@ -349,6 +413,7 @@ body.touch #mates{top:calc(env(safe-area-inset-top,0px) + 236px)}
     <h2 id="upTitle">เคลียร์!</h2>
     <p id="upSub"></p>
     <div class="cards" id="upCards"></div>
+    <div class="btns"><button class="b alt" id="rerollBtn">🎲 สุ่มการ์ดใหม่</button></div>
   </div>
 </div>
 
