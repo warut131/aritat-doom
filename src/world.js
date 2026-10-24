@@ -126,7 +126,7 @@ function makeSky() {
       float fbm(vec2 p){ float s=0., a=.5; for(int i=0;i<6;i++){ s+=a*n(p); p*=2.02; a*=.5; } return s; }
       void main(){
         vec3 d = normalize(vDir); float y = d.y;
-        vec3 top = vec3(0.004,0.003,0.012), mid = vec3(0.07,0.015,0.03), hor = vec3(0.55,0.1,0.03);
+        vec3 top = vec3(0.018,0.014,0.045), mid = vec3(0.12,0.04,0.07), hor = vec3(0.7,0.2,0.08);
         vec3 col = mix(hor, mid, smoothstep(0.0, 0.18, y)); col = mix(col, top, smoothstep(0.15, 0.7, y));
         // clouds lit from below by the fires of hell
         vec2 uv = d.xz / max(0.08, y + 0.15) * 1.3 + vec2(uTime*0.004, uTime*0.002);
@@ -163,14 +163,14 @@ export function buildWorld(scene, renderer, quality) {
 
   // ----- materials -----
   const M = {
-    asphalt: pbr('asphalt', { extra: { emissiveMap: tex('asphalt_lava.jpg', true), emissive: new THREE.Color(0xff4a0a), emissiveIntensity: 2.2 } }),
+    asphalt: pbr('asphalt', { extra: { emissiveMap: tex('asphalt_lava.jpg', true), emissive: new THREE.Color(0xff4a0a), emissiveIntensity: 3.2 } }),
     paver: pbr('paver'),
     plaster: pbr('plaster', { extra: { vertexColors: true } }),
     shutter: pbr('shutter', { metal: true }),
     metal: pbr('metal', { metal: true, extra: { vertexColors: true } }),
     wood: pbr('wood'),
     concrete: pbr('concrete', { extra: { vertexColors: true } }),
-    win: new THREE.MeshStandardMaterial({ map: tex('win_c.jpg', true), emissiveMap: tex('win_e.jpg', true), emissive: 0xffffff, emissiveIntensity: 1.6, roughness: 0.15, metalness: 0.3 }),
+    win: new THREE.MeshStandardMaterial({ map: tex('win_c.jpg', true), emissiveMap: tex('win_e.jpg', true), emissive: 0xffffff, emissiveIntensity: 2.2, roughness: 0.15, metalness: 0.3 }),
     dark: new THREE.MeshStandardMaterial({ color: 0x141012, roughness: 0.8 }),
     paint: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.2 }),
     glowY: new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xffb050, emissiveIntensity: 4 }),
@@ -478,8 +478,8 @@ export function buildWorld(scene, renderer, quality) {
   const meshes = B.finish(scene, true);
 
   // ----- lights -----
-  const hemi = new THREE.HemisphereLight(0x8a7ab8, 0x2a1410, 0.5); scene.add(hemi);
-  const moon = new THREE.DirectionalLight(0xb0a0ff, 0.9);
+  const hemi = new THREE.HemisphereLight(0xb8a8e0, 0x5a3428, 1.6); scene.add(hemi);
+  const moon = new THREE.DirectionalLight(0xd0c0ff, 2.1);
   moon.position.set(-40, 60, -70); moon.castShadow = quality !== 'low';
   const ss = quality === 'high' ? 2048 : 1024; moon.shadow.mapSize.set(ss, ss);
   const sc = moon.shadow.camera; sc.left = -45; sc.right = 45; sc.top = 45; sc.bottom = -45; sc.near = 1; sc.far = 220;
@@ -488,9 +488,9 @@ export function buildWorld(scene, renderer, quality) {
   // a fixed budget of point lights (shader cost) - nearest fires/lamps get them each frame
   const NL = quality === 'low' ? 4 : 8;
   const plights = [];
-  for (let i = 0; i < NL; i++) { const l = new THREE.PointLight(0xff8a3a, 0, 26, 2); scene.add(l); plights.push(l); }
+  for (let i = 0; i < NL; i++) { const l = new THREE.PointLight(0xff8a3a, 0, 34, 1.6); scene.add(l); plights.push(l); }
   const lightSources = [
-    ...lamps.map(l => ({ x: l.x, y: l.y, z: l.z, c: l.c, i: l.small ? 6 : 26, flick: 0 })),
+    ...lamps.map(l => ({ x: l.x, y: l.y, z: l.z, c: l.c, i: l.small ? 12 : 55, flick: 0 })),
     ...fires.filter(f => f.drum || f.portal).map(f => ({ x: f.p[0], y: f.p[1], z: f.p[2], c: f.portal ? 0xff3010 : 0xff7a2a, i: f.portal ? 120 : 30, flick: 1 })),
     ...shopGlows.map(g => ({ x: g.p[0], y: g.p[1], z: g.p[2], c: g.c, i: 10, flick: 0 })),
   ];
@@ -512,7 +512,7 @@ export function buildWorld(scene, renderer, quality) {
   embers.frustumCulled = false; scene.add(embers);
 
   const sky = makeSky(); scene.add(sky);
-  scene.fog = new THREE.FogExp2(0x1c0a0e, 0.0085);
+  scene.fog = new THREE.FogExp2(0x3a2028, 0.0058);
   scene.background = new THREE.Color(0x120404);
 
   // ----- environment map: capture the lit street once -----
@@ -526,7 +526,7 @@ export function buildWorld(scene, renderer, quality) {
     cc.update(renderer, scene);
     const env = pm.fromCubemap(rt.texture).texture;
     scene.remove(cc); rt.dispose(); pm.dispose();
-    scene.environment = env || oldEnv; scene.environmentIntensity = 0.7;
+    scene.environment = env || oldEnv; scene.environmentIntensity = 1.25;
   }
 
   // ----- per-frame -----

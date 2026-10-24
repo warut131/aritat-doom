@@ -19,7 +19,7 @@ export function createPost(renderer, scene, camera, quality) {
   const tone = new ToneMappingEffect({ mode: ToneMappingMode.AGX });
   const grade = new HueSaturationEffect({ saturation: 0.18 });
   const contrast = new BrightnessContrastEffect({ contrast: 0.12 });
-  const vign = new VignetteEffect({ darkness: 0.6, offset: 0.28 });
+  const vign = new VignetteEffect({ darkness: 0.45, offset: 0.32 });
   const noise = new NoiseEffect({ premultiply: true, blendFunction: BlendFunction.SCREEN }); noise.blendMode.opacity.value = 0.12;
   const ca = new ChromaticAberrationEffect({ offset: new THREE.Vector2(0.0007, 0.0005), radialModulation: true, modulationOffset: 0.35 });
   composer.addPass(new EffectPass(camera, bloom, tone, grade, contrast, vign, noise));

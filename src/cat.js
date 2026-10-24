@@ -123,7 +123,9 @@ function furMaterial(C) {
           vec3 vGrad = sign(fDet) * (dH.x * R1 + dH.y * R2);
           normal = normalize(abs(fDet) * normal - vGrad); }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        totalEmissiveRadiance += vec3(1.6, 0.35, 0.3) * uFlash + vec3(1.2, 0.45, 0.05) * uGlow;`);
+        totalEmissiveRadiance += vec3(1.6, 0.35, 0.3) * uFlash + vec3(1.2, 0.45, 0.05) * uGlow;
+        { float rim = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0);
+          totalEmissiveRadiance += mix(diffuseColor.rgb, vec3(1.0, 0.55, 0.35), 0.5) * rim * 0.55; }`);
   };
   mat.customProgramCacheKey = () => 'catfur1';
   return mat;

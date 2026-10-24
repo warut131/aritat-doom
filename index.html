@@ -183,6 +183,38 @@ label.sens input{flex:1;min-width:0;accent-color:var(--blood)}
 #loading{position:fixed;inset:0;display:grid;place-items:center;background:var(--void);font-family:var(--font-logo);font-size:34px;color:var(--blood);text-align:center;padding:24px}
 @media (max-width:640px){#atable,#arms{display:none}.seg b{font-size:26px}#face{width:48px;height:48px}}
 @media (prefers-reduced-motion:reduce){#feed div{animation:none}}
+
+.lobby{max-width:980px}
+.lobby-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin:12px 0}
+.lbox{background:#120a09;border:1px solid #4a2e28;border-radius:6px;padding:12px 14px;display:grid;gap:10px;align-content:start;min-width:0}
+.lbox h3{margin:0;font:700 17px var(--font-th);color:var(--ember);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.chk{display:flex;gap:8px;align-items:center;color:var(--ash);font-size:14px}
+#roomList{display:grid;gap:8px;max-height:260px;overflow:auto}
+.room{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;background:#1c1210;border:1px solid #3a2420;border-radius:5px;padding:8px 10px}
+.room b{font:700 16px var(--font-th);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.room small{color:var(--ash);font-size:12px;grid-column:1}
+.room button{grid-row:1/3;grid-column:2}
+#playerList{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+#playerList li{display:flex;align-items:center;gap:8px;background:#1c1210;border-radius:5px;padding:7px 10px;font-weight:700}
+#playerList li i{width:12px;height:12px;border-radius:50%;flex:none}
+#playerList li .st{margin-left:auto;font-size:12px;color:var(--ash)}
+#playerList li .st.ok{color:var(--toxic)}
+#playerList li .kick{margin-left:6px}
+.chat{grid-template-rows:auto 1fr auto}
+#chatLog{height:170px;overflow:auto;font-size:14px;display:flex;flex-direction:column;gap:3px;color:var(--bone)}
+#chatLog .sys{color:var(--ash);font-style:italic}
+#chatForm{display:flex;gap:6px}
+#chatForm input{flex:1;min-width:0;font:600 15px var(--font-ui);background:#0d0605;color:var(--bone);border:1px solid #5a3a32;border-radius:4px;padding:7px 9px}
+#mates{position:absolute;top:calc(env(safe-area-inset-top,0px) + 276px);left:max(16px,env(safe-area-inset-left,0px));width:160px;display:grid;gap:7px;font-size:13px;font-weight:700}
+#mates .m{display:grid;gap:2px}
+#mates .bar{height:7px;background:rgba(0,0,0,.6);border:1px solid #3a2420}
+#mates .bar i{display:block;height:100%}
+#mates .st{color:#ff5a5a;font-size:11px}
+#chatHud{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:150px;display:grid;gap:2px;font-size:14px;font-weight:700;text-shadow:0 1px 3px #000;pointer-events:none;max-width:420px}
+#chatHud div{background:rgba(10,4,4,.45);padding:2px 8px;border-radius:3px}
+#chatBar{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:120px;width:min(420px,80vw)}
+#chatBar input{width:100%;font:600 15px var(--font-ui);background:rgba(10,4,4,.85);color:var(--bone);border:1px solid var(--ember);border-radius:4px;padding:7px 9px}
+body.touch #mates{top:calc(env(safe-area-inset-top,0px) + 236px)}
 </style>
 </head>
 <body>
@@ -202,7 +234,9 @@ label.sens input{flex:1;min-width:0;accent-color:var(--blood)}
   <div id="revive" hidden></div>
   <div id="downMsg" hidden>ล้มแล้ว!<small>ให้เพื่อนมายืนข้างๆ 3 วินาทีเพื่อช่วยลุก</small></div>
   <canvas id="radar" width="150" height="150"></canvas>
-  <div id="mate" hidden><span id="mateName"></span><div class="bar"><i id="mateHp"></i></div><span id="mateSt"></span></div>
+  <div id="mates" hidden></div>
+  <div id="chatHud"></div>
+  <form id="chatBar" hidden autocomplete="off"><input id="chatBarIn" maxlength="120" placeholder="แชต… (Enter ส่ง · Esc ยกเลิก)"></form>
   <div id="streak"></div>
   <div id="topc"><div id="wave">WAVE 1</div><div id="left"></div><div id="bossbar" hidden><span>ราชาแมวนรก</span><div><div id="bossfill"></div></div></div></div>
   <div id="tl"><span id="kills">☠ 0</span><span class="c" id="coinHud">🪙 0</span><span id="coinCh"></span><span id="sharpBadge" hidden>◎ โหมดมือแม่น</span></div>
@@ -247,11 +281,11 @@ label.sens input{flex:1;min-width:0;accent-color:var(--blood)}
       <button class="b alt" id="sharpBtn">โหมดมือแม่น: ปิด</button>
       <button class="b alt" id="qBtn">กราฟิก: สูง</button>
       <button class="b alt" id="musicBtn">เพลง: เปิด</button>
-      <label class="sens" for="bright">ความสว่าง <input type="range" id="bright" min="0.4" max="1.6" step="0.05" value="1"></label>
+      <label class="sens" for="bright">ความสว่าง <input type="range" id="bright" min="0.4" max="2.2" step="0.05" value="1"></label>
     </div>
     <div class="btns">
       <button class="b" id="startBtn">ลงนรก</button>
-      <button class="b" id="coopBtn">เล่นด้วยกัน (Co-op)</button>
+      <button class="b" id="coopBtn">เล่นออนไลน์ (สูงสุด 6 คน)</button>
       <button class="b alt" id="shopBtn">ร้านอัปเกรด <span class="coins" id="menuCoins"></span></button>
     </div>
     <p class="hint">เปิดเสียงด้วยจะมันกว่า · มือถือ: ลากจอซ้ายเพื่อเดิน ลากจอขวาเพื่อหัน · กด M ปิดเสียงทั้งหมด</p>
@@ -260,16 +294,37 @@ label.sens input{flex:1;min-width:0;accent-color:var(--blood)}
 </div>
 
 <div id="coop" class="overlay" hidden>
-  <div class="panel">
-    <h2>เล่นด้วยกัน</h2>
-    <p>สองคนช่วยกันล้างซอย คนหนึ่งกด "สร้างห้อง" แล้วส่งรหัสห้องให้เพื่อน อีกคนใส่รหัสแล้วกด "เข้าร่วม" ต้องต่อเน็ตทั้งคู่ แมวจะเยอะขึ้นและอึดขึ้น ถ้าใครล้ม อีกคนเข้าไปยืนข้างๆ 3 วินาทีเพื่อช่วยลุก</p>
-    <label class="field" for="coopName">ชื่อของคุณ <input id="coopName" maxlength="14" autocomplete="off"></label>
-    <div class="btns"><button class="b" id="hostBtn">สร้างห้อง</button></div>
-    <div class="field"><label for="joinCode">หรือใส่รหัสห้องของเพื่อน</label><input id="joinCode" maxlength="5" placeholder="K7Q2M" autocomplete="off"><button class="b alt" id="joinBtn">เข้าร่วม</button></div>
-    <div id="roomBox" hidden><span>รหัสห้อง</span><b id="roomCode">-----</b><button class="b alt" id="copyCode">คัดลอกรหัส</button><button class="b" id="copyLink" hidden>คัดลอกลิงก์ชวน</button></div>
+  <div class="panel lobby">
+    <div id="coopEntry">
+      <h2>เล่นออนไลน์</h2>
+      <p>สูงสุด 6 คนต่อห้อง ยิ่งคนเยอะแมวยิ่งเยอะ ใครล้มให้เพื่อนเข้าไปยืนข้างๆ 3 วินาทีเพื่อช่วยลุก</p>
+      <label class="field" for="coopName">ชื่อของคุณ <input id="coopName" maxlength="14" autocomplete="off"></label>
+      <div class="lobby-cols">
+        <section class="lbox">
+          <h3>สร้างห้องใหม่</h3>
+          <label class="field" for="roomTitle">ชื่อห้อง <input id="roomTitle" maxlength="24" autocomplete="off" placeholder="ซอยของ…"></label>
+          <label class="chk"><input type="checkbox" id="roomPublic" checked> โชว์ในรายชื่อห้อง ให้ใครก็เข้าได้</label>
+          <div class="btns"><button class="b" id="hostBtn">สร้างห้อง</button></div>
+          <div class="field"><label for="joinCode">เข้าด้วยรหัสห้อง</label><input id="joinCode" maxlength="5" placeholder="K7Q2M" autocomplete="off"><button class="b alt" id="joinBtn">เข้าร่วม</button></div>
+        </section>
+        <section class="lbox">
+          <h3>ห้องที่เปิดอยู่ <button class="linkbtn" id="roomsRefresh">รีเฟรช</button></h3>
+          <div id="roomList"><p class="hint">กำลังหาห้อง…</p></div>
+        </section>
+      </div>
+    </div>
+    <div id="coopRoom" hidden>
+      <h2 id="roomHead">ห้อง</h2>
+      <div id="roomBox"><span>รหัสห้อง</span><b id="roomCode">-----</b><button class="b alt" id="copyCode">คัดลอกรหัส</button><button class="b" id="copyLink" hidden>คัดลอกลิงก์ชวน</button></div>
+      <div class="lobby-cols">
+        <section class="lbox"><h3>ผู้เล่น <span id="pCount">1/6</span></h3><ul id="playerList"></ul></section>
+        <section class="lbox chat"><h3>แชต</h3><div id="chatLog"></div><form id="chatForm" autocomplete="off"><input id="chatIn" maxlength="120" placeholder="พิมพ์แล้วกด Enter"><button class="b alt" type="submit">ส่ง</button></form></section>
+      </div>
+      <div class="btns"><button class="b" id="readyBtn">พร้อม!</button><button class="b" id="coopStart" hidden>เริ่มเกม</button><button class="b alt" id="leaveBtn">ออกจากห้อง</button></div>
+    </div>
     <p id="coopStatus" class="status"></p>
-    <div class="btns"><button class="b" id="coopStart" hidden>เริ่มเกม</button><button class="b alt" id="coopBack">กลับ</button></div>
-    <p class="hint">ทั้งสองคนต้องเปิดเกมเวอร์ชันเดียวกัน (เว็บเดียวกันหรือไฟล์เดียวกัน) · ถ้าต่อไม่ติดลองเปลี่ยนเน็ต บางเครือข่ายมือถือบล็อกการต่อตรง · <button class="linkbtn" id="localTest">ทดสอบสองแท็บในเครื่องเดียว</button></p>
+    <div class="btns"><button class="b alt" id="coopBack">กลับหน้าแรก</button></div>
+    <p class="hint">ทุกคนต้องเปิดเกมจากเว็บเดียวกัน · ถ้าต่อไม่ติดลองเปลี่ยนเน็ต บางเครือข่ายบล็อกการต่อตรง · <button class="linkbtn" id="localTest">โหมดทดสอบหลายแท็บในเครื่องเดียว</button></p>
   </div>
 </div>
 
@@ -304,7 +359,7 @@ label.sens input{flex:1;min-width:0;accent-color:var(--blood)}
     <div class="opts">
       <label class="sens" for="sens">ความไวเมาส์ <input type="range" id="sens" min="0.3" max="3" step="0.1" value="1"><span id="sensVal">1.0</span></label>
       <label class="sens" for="fov">มุมมอง <input type="range" id="fov" min="65" max="110" step="1" value="80"><span id="fovVal">80</span></label>
-      <label class="sens" for="bright2">ความสว่าง <input type="range" id="bright2" min="0.4" max="1.6" step="0.05" value="1"></label>
+      <label class="sens" for="bright2">ความสว่าง <input type="range" id="bright2" min="0.4" max="2.2" step="0.05" value="1"></label>
       <button class="b alt" id="qBtn2">กราฟิก: สูง</button>
       <button class="b alt" id="musicBtn2">เพลง: เปิด</button>
     </div>

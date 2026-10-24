@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Peer } from 'peerjs';
+import { MockPeer } from './mockpeer.js';
 import { buildWorld, preloadTextures, A, srg, srnd } from './world.js';
 import { loadCats, makeCat as buildCat } from './cat.js';
 import { createPost } from './post.js';
@@ -12,6 +13,7 @@ const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const SAVE_KEY='aritat-doom-save-v1';
 let save={coins:0,up:{},best:{wave:0,kills:0,gk:0},runs:0,sens:1,quality:'high',music:true,bright:1};
 try{const s=JSON.parse(localStorage.getItem(SAVE_KEY));if(s)save=Object.assign(save,s);}catch(e){}
+if(save.brightV!==2){save.bright=1;save.brightV=2;}
 const persist=()=>{try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){}};
 const upLv=id=>save.up[id]||0;
 const SHOP=[
@@ -186,7 +188,7 @@ let fxI=0;
 function fx(x,y,z,o){const f=fxs[fxI++%FXN];const s=f.s;s.position.set(x,y,z);f.v.set(o.vx||0,o.vy||0,o.vz||0);f.l=f.m=o.life||0.5;f.s0=o.s0||0.5;f.s1=o.s1||1;f.o=o.op===undefined?1:o.op;f.g=o.g||0;f.rot=o.rot||0;
  const add=o.add!==false;if(f.add!==add){s.material.blending=add?THREE.AdditiveBlending:THREE.NormalBlending;s.material.needsUpdate=true;f.add=add;}
  s.material.map=o.tex||glowTex;s.material.color.setHex(o.color||0xffffff);s.material.rotation=rand(0,TAU);s.visible=true;}
-const boomLight=new THREE.PointLight(0xff7a2a,0,40,2);scene.add(boomLight);
+const boomLight=new THREE.PointLight(0xff7a2a,0,40,2);scene.add(boomLight);const bfgLight=new THREE.PointLight(0x6aff4a,0,22,2);scene.add(bfgLight);
 // screen blood splats (2D)
 const scrSplats=[];
 function screenSplat(n,big){for(let i=0;i<n;i++)scrSplats.push({x:rand(0.05,0.95),y:rand(0.05,0.8),r:rand(0.02,big?0.075:0.05),l:rand(1.1,2),m:2,d:rand(0.05,0.25),seed:Math.random()*1000});}
@@ -226,7 +228,7 @@ const GUNS=[
  {id:'bfg',name:'ปืนน้ำมนต์หลวงพ่อ',ammo:'cells',cost:40,dmg:700,rate:0.55,proj:'bfg',kick:0.13,color:0x8aff6a},
 ];
 const vm=new THREE.Group();camera.add(vm);
-const vmLight=new THREE.PointLight(0xffc070,0,14,2);camera.add(vmLight);const vmFill=new THREE.PointLight(0xffd8c0,1.6,2.5,2);vmFill.position.set(0.1,0.25,0.1);camera.add(vmFill);vmLight.position.set(0.25,-0.1,-0.9);
+const vmLight=new THREE.PointLight(0xffc070,0,14,2);camera.add(vmLight);const torch=new THREE.PointLight(0xffe0c8,14,22,1.4);torch.position.set(0,0.4,0.6);camera.add(torch);const vmFill=new THREE.PointLight(0xffd8c0,1.6,2.5,2);vmFill.position.set(0.1,0.25,0.1);camera.add(vmFill);vmLight.position.set(0.25,-0.1,-0.9);
 const gunModels=[];
 const GB_=buildGuns();GB_.guns.forEach(g=>gunModels.push(g));const fist=GB_.fist;vm.add(fist);fist.visible=false;
 gunModels.forEach(g=>vm.add(g));
@@ -281,13 +283,13 @@ function rec(){const old=P.maxHp;P.maxHp=100+upLv('hp')*15+U('hp')*25;if(old&&P.
 const amax=k=>Math.round(AMMO_MAX[k]*P.ammoMul);
 
 /* ======================= WAVES ======================= */
-function buildWave(n){const q=[],total=Math.round((6+n*3.4)*(NET.mode?1.5:1));const pool=[['tabby',10],['kitten',4]];
+function buildWave(n){const q=[],total=Math.round((6+n*3.4)*(1+0.5*(pN()-1)));const pool=[['tabby',10],['kitten',4]];
  if(n>=2)pool.push(['siamese',6]);if(n>=3)pool.push(['bat',3+n*0.4]);if(n>=3)pool.push(['black',5]);if(n>=3)pool.push(['khao',4]);if(n>=5)pool.push(['korat',5]);if(n>=6)pool.push(['persian',2+n*0.25]);
  let tot=0;for(const p of pool)tot+=p[1];
  for(let i=0;i<total;i++){let r=Math.random()*tot,t='tabby';for(const p of pool){r-=p[1];if(r<=0){t=p[0];break;}}if(t==='kitten')q.push('kitten','kitten','kitten');else q.push(t);}
  if(n%5===0)q.splice(Math.min(4,q.length),0,'boss');return q;}
 function startWave(){if(P.down){P.down=false;P.hp=P.maxHp*0.3;}wave++;queue=buildWave(wave);spawnT=1.2;showBanner('WAVE '+wave,wave%5===0?'ราชาแมวนรกกำลังขึ้นมาจากประตู':'แมวปีศาจ '+queue.length+' ตัว');S.wave();music.riff=(music.riff+1)%4;waveClearT=-1;if(wave>1)spawnBarrels();}
-function aliveTargets(){const T=[];if(P&&!P.down&&P.hp>0)T.push({x:P.pos.x,y:P.pos.y,z:P.pos.z,local:true});if(NET.mode==='host'&&R.on&&!R.down)T.push({x:R.x,y:R.y,z:R.z,local:false});return T;}
+function aliveTargets(){const T=[];if(P&&!P.down&&P.hp>0)T.push({x:P.pos.x,y:P.pos.y,z:P.pos.z,local:true});if(NET.mode==='host')for(const m of MATES.values())if(m.on&&!m.down)T.push({x:m.x,y:m.y,z:m.z,local:false,pid:m.pid});return T;}
 function spawnPoint(){const T=aliveTargets();const c=T.length?T[(Math.random()*T.length)|0]:{x:0,z:0};
  for(let k=0;k<40;k++){const a=Math.random()*TAU,r=rand(24,44);const x=c.x+Math.cos(a)*r,z=c.z+Math.sin(a)*r;if(Math.abs(x)>A-3||Math.abs(z)>A-3)continue;if(insideObstacle(x,z,1.3))continue;let ok=true;for(const t of T)if(Math.hypot(t.x-x,t.z-z)<18)ok=false;if(ok)return [x,z];}
  return [clamp(c.x+28,-A+3,A-3),clamp(c.z,-A+3,A-3)];}
@@ -296,7 +298,7 @@ function insideObstacleH(x,z,y){for(const o of obstacles)if(y<o.h&&Math.abs(x-o.
 let nextEid=1;
 function spawnEnemy(type,x,z,net){
  if(x===undefined)[x,z]=spawnPoint();const C=CATS[type],m=makeCat(type);m.g.position.set(x,0,z);scene.add(m.g);
- const hpS=(1+(wave-1)*0.14)*(NET.mode?1.5:1),dS=1+(wave-1)*0.06;
+ const hpS=(1+(wave-1)*0.14)*(1+0.35*(pN()-1)),dS=1+(wave-1)*0.06;
  const e=Object.assign(m,{id:net?net.id:nextEid++,onG:true,side:Math.random()<0.5?1:-1,stuck:0,landed:false,baseEm:new THREE.Color(C.body).multiplyScalar(0.14),type,C,hp:C.hp*hpS,max:C.hp*hpS,spd:C.spd*rand(0.92,1.1),dmg:C.dmg*dS,s:C.s,rad:0.42*C.s,y:0,vy:0,st:'run',t:rand(1.5,3),atkCd:0.6,flash:0,knock:new THREE.Vector3(),phase:Math.random()*10,lunge:0,dead:false,slamCd:4,sumCd:6,stagger:0,canStagger:type!=='boss',corpse:0,baseCol:new THREE.Color(C.body)});
  if(net){e.tx=x;e.tz=z;e.ty=net.y;e.tr=0;e.y=net.y;m.g.position.y=net.y;}
  else if(C.fly){e.y=rand(3.5,6);e.ty=e.y;e.ang=Math.atan2(z-P.pos.z,x-P.pos.x);e.dirSign=Math.random()<0.5?1:-1;e.st='orbit';m.g.position.y=e.y;}
@@ -396,17 +398,16 @@ function autoSwitch(){for(const i of [P.cur===5?3:P.cur,0,1,4,3,2]){if(P.ammo[GU
 function sparks(pt,n){for(let i=0;i<n;i++)fx(pt.x,pt.y,pt.z,{color:0xffc060,s0:0.18,s1:0.02,life:0.25,vx:rand(-4,4),vy:rand(0,5),vz:rand(-4,4),g:12});fx(pt.x,pt.y,pt.z,{tex:smokeTex,add:false,color:0x2a2020,s0:0.2,s1:0.8,life:0.6,vy:0.6,op:0.5});}
 function makeProj(kind,from,dir){return kind==='rocket'?makeRocket(from,dir):kind==='bfg'?makeBfg(from,dir):makePlasma(from,dir);}
 function fireProj(kind,from,dir,dmg){
- const p=makeProj(kind,from,dir);p.dmg=dmg;p.r=4.5*P.radMul;p.ch=U('plasma');p.by=NET.mode==='client'?'c':'h';p.visual=NET.mode==='client';projs.push(p);
+ const p=makeProj(kind,from,dir);p.dmg=dmg;p.r=4.5*P.radMul;p.ch=U('plasma');p.by=undefined;p.visual=NET.mode==='client';projs.push(p);
  if(NET.mode)NET.send({t:'pj',k:kind,x:from.x,y:from.y,z:from.z,vx:p.v.x,vy:p.v.y,vz:p.v.z,dmg,r:p.r,ch:p.ch});}
 function spawnNetProj(m){const dir=new THREE.Vector3(m.vx,m.vy,m.vz).normalize();const from=new THREE.Vector3(m.x,m.y,m.z);const p=makeProj(m.k,from,dir);p.v.set(m.vx,m.vy,m.vz);
- p.dmg=m.dmg;p.r=m.r;p.ch=m.ch;p.by=NET.mode==='host'?'c':'h';p.visual=NET.mode==='client';p.mate=true;projs.push(p);}
+ p.dmg=m.dmg;p.r=m.r;p.ch=m.ch;p.by=m.from;p.visual=NET.mode==='client';p.mate=true;projs.push(p);}
 function makeRocket(from,dir){const g=new THREE.Group();part(GEO.cyl,std(0x8a8a90,{metalness:0.8,roughness:0.3}),0.07,0.5,0.07,0,0,0,g).rotation.x=Math.PI/2;const c=part(GEO.cone,std(0xd02020),0.07,0.16,0.07,0,0,-0.33,g);c.rotation.x=-Math.PI/2;
  const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xff8a20,blending:THREE.AdditiveBlending,depthWrite:false}));gl.scale.setScalar(0.9);gl.position.z=0.3;g.add(gl);
  g.position.copy(from);g.lookAt(_e.copy(from).add(dir));scene.add(g);return {m:g,v:dir.clone().multiplyScalar(40),kind:'rocket',life:4,trail:0};}
 function makeBfg(from,dir){const g=new THREE.Group();part(GEO.sph,bas(0xeaffd8),0.32,0.32,0.32,0,0,0,g);
  const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0x5aff3a,blending:THREE.AdditiveBlending,depthWrite:false}));gl.scale.setScalar(3.2);g.add(gl);
  const gl2=new THREE.Sprite(new THREE.SpriteMaterial({map:smokeTex,color:0x2aff6a,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0.8}));gl2.scale.setScalar(2.2);g.add(gl2);
- const l=new THREE.PointLight(0x6aff4a,60,22,2);g.add(l);
  g.position.copy(from);scene.add(g);return {m:g,v:dir.clone().multiplyScalar(24),kind:'bfg',life:4.5,zapT:0,spin:gl2};}
 function bfgBlast(q,p){
  S.boom(1.3);shake=Math.max(shake,clamp(1.4-q.distanceTo(camera.position)/40,0.2,1));boomLight.position.copy(q);boomLight.color.setHex(0x6aff4a);boomLight.intensity=500;setTimeout(()=>boomLight.color.setHex(0xff7a2a),400);
@@ -414,11 +415,11 @@ function bfgBlast(q,p){
  for(let i=0;i<16;i++)fx(q.x,q.y,q.z,{tex:smokeTex,add:false,color:0x0c2a10,s0:1,s1:rand(5,9),life:rand(1.2,2),vx:rand(-3,3),vy:rand(1,3),vz:rand(-3,3),op:0.8});
  const ring=new THREE.Mesh(new THREE.RingGeometry(0.8,1,64),new THREE.MeshBasicMaterial({color:0x8aff6a,transparent:true,opacity:0.9,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false}));ring.rotation.x=-Math.PI/2;ring.position.set(q.x,0.15,q.z);scene.add(ring);rings.push({m:ring,r:0.5,max:20,x:q.x,z:q.z,vis:true,speed:40});
  if(p.visual)return;
- const by=p.by==='c'?'c':undefined;const k0=kills;
+ const by=p.by;const k0=kills;
  for(const e of enemies){if(e.dead)continue;_d.copy(e.g.position);_d.y+=0.6*e.s;const dd=_d.distanceTo(q)-e.rad;
   if(dd<9){_e.subVectors(_d,q).normalize();_e.y=0.5;damage(e,p.dmg*(1-clamp(dd/9,0,1)*0.6),_e,18,false,'น้ำมนต์',{explosive:true,by});}
   else if(dd<34&&clearLine(q,_d)){tracer(q,_d.clone(),0x8aff6a,0.07,0.35);_e.subVectors(_d,q).normalize();damage(e,p.dmg*0.45,_e,8,false,'น้ำมนต์',{explosive:true,point:_d.clone(),by});}}
- if(kills-k0>=3&&!by)styleAdd(40*(kills-k0),'น้ำมนต์ล้างบาง x'+(kills-k0));
+ if(kills-k0>=3&&by===undefined)styleAdd(40*(kills-k0),'น้ำมนต์ล้างบาง x'+(kills-k0));
  for(const b of barrels.slice()){if(b.dead)continue;if(Math.hypot(b.x-q.x,b.z-q.z)<9)hitBarrel(b,999,p.by);}
  if(NET.mode==='host')NET.send({t:'bx',x:q.x,y:q.y,z:q.z});}
 function makePlasma(from,dir){const g=new THREE.Group();part(GEO.sph,bas(0xbff0ff),0.08,0.08,0.08,0,0,0,g);const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0x3aa0ff,blending:THREE.AdditiveBlending,depthWrite:false}));gl.scale.setScalar(0.8);g.add(gl);
@@ -427,12 +428,12 @@ function hitBarrel(b,d,by){if(b.dead)return;b.hp-=d;if(b.hp<=0){removeBarrel(b);
 function hitBarrelAny(b,d){if(NET.mode==='client'){NET.send({t:'bh',i:b.idx,d});sparks(new THREE.Vector3(b.x,0.8,b.z),3);}else hitBarrel(b,d);}
 function explode(pos,radius,dmg,fromPlayer,src,by){
  explodeFx(pos,radius,fromPlayer);
- if(NET.mode==='host')NET.send({t:'x',x:pos.x,y:pos.y,z:pos.z,r:radius,f:fromPlayer?1:0,s:src,by:by||'h'});
- let nHit=0;const k0=kills;const mul=(fromPlayer&&by!=='c'&&src!=='ถังแก๊ส')?P.dmgMul:1;
- for(const e of enemies){if(e.dead)continue;_d.copy(e.g.position);_d.y+=0.6*e.s;const d=_d.distanceTo(pos)-e.rad;if(d<radius){nHit++;const f=1-clamp(d/radius,0,1)*0.7;_e.subVectors(_d,pos).normalize();_e.y=0.6;damage(e,dmg*f*mul,_e,14*f,false,src,{explosive:true,by:by==='c'?'c':undefined});}}
+ by=ownBy(by);if(NET.mode==='host')NET.send({t:'x',x:pos.x,y:pos.y,z:pos.z,r:radius,f:fromPlayer?1:0,s:src,by:by===undefined?NET.me:by});
+ let nHit=0;const k0=kills;const mul=(fromPlayer&&by===undefined&&src!=='ถังแก๊ส')?P.dmgMul:1;
+ for(const e of enemies){if(e.dead)continue;_d.copy(e.g.position);_d.y+=0.6*e.s;const d=_d.distanceTo(pos)-e.rad;if(d<radius){nHit++;const f=1-clamp(d/radius,0,1)*0.7;_e.subVectors(_d,pos).normalize();_e.y=0.6;damage(e,dmg*f*mul,_e,14*f,false,src,{explosive:true,by});}}
  if(kills-k0>=3)styleAdd(25*(kills-k0),'ระเบิดหมู่ x'+(kills-k0));
  for(const b of barrels.slice()){if(b.dead)continue;const d=Math.hypot(b.x-pos.x,b.z-pos.z);if(d<radius*0.9&&d>0.3)hitBarrel(b,999,by);}
- selfBlast(pos,radius,src==='ถังแก๊ส'?'env':(by==='c'?'mate':'own'));
+ selfBlast(pos,radius,src==='ถังแก๊ส'?'env':(by===undefined?'own':'mate'));
  return nHit;
 }
 function selfBlast(pos,radius,kind){if(P.down)return;const pd=Math.hypot(P.pos.x-pos.x,P.pos.z-pos.z),vd=Math.abs((P.pos.y+0.8)-pos.y);if(pd<radius&&vd<radius){const f=1-pd/radius;hurt((kind==='own'?18:kind==='mate'?10:45)*f,true,pos.x,pos.z);P.vy=Math.max(P.vy,9*f+2);_e.set(P.pos.x-pos.x,0,P.pos.z-pos.z).normalize();P.pushV=(P.pushV||new THREE.Vector3()).copy(_e).multiplyScalar(14*f);}}
@@ -448,7 +449,7 @@ function explodeFx(pos,radius,fromPlayer){
 function damage(e,d,dir,knock,head,src,o={}){
  if(e.dead)return;
  if(e.stagger>0&&!o.explosive)d*=1.5;
- e.hp-=d;e.flash=0.06;const mine=!o.by;
+ e.hp-=d;e.flash=0.06;const mine=o.by===undefined||o.by===NET.me;
  if(e.type!=='boss'&&dir){e.knock.x+=dir.x*knock*(6/e.s);e.knock.z+=dir.z*knock*(6/e.s);}
  const pt=o.point||new THREE.Vector3(e.g.position.x,0.7*e.s,e.g.position.z);
  blood(pt.x,pt.y,pt.z,head?14:7,head?5:3.5,0.06,dir);if(Math.random()<0.25)decal(e.g.position.x+rand(-0.6,0.6),e.g.position.z+rand(-0.6,0.6),rand(0.4,1.1));
@@ -460,9 +461,9 @@ function damage(e,d,dir,knock,head,src,o={}){
  if(e.canStagger&&e.stagger<=0&&e.hp<=e.max*0.2&&!e.staggered){e.stagger=3.2;e.staggered=true;demonMeow(0.8,true);}
 }
 function killCat(e,head,src,o={}){
- const mine=NET.mode==='client'?o.by==='c':o.by!=='c';
+ const mine=o.by===undefined||o.by===NET.me;
  e.dead=true;e.vy=0;hitMeshes=hitMeshes.filter(m=>m!==e.body&&m!==e.head);
- if(NET.mode==='host')NET.send({t:'k',i:e.id,g:o.gib?1:0,dx:o.dir?+o.dir.x.toFixed(2):0,dz:o.dir?+o.dir.z.toFixed(2):0,gl:o.glory?1:0,h:head?1:0,by:o.by==='c'?'c':'h',d:+(o.dist||0).toFixed(1),s:src||''});
+ if(NET.mode==='host')NET.send({t:'k',i:e.id,g:o.gib?1:0,dx:o.dir?+o.dir.x.toFixed(2):0,dz:o.dir?+o.dir.z.toFixed(2):0,gl:o.glory?1:0,h:head?1:0,by:o.by===undefined?NET.me:o.by,d:+(o.dist||0).toFixed(1),s:src||''});
  if(mine){kills++;combo++;comboT=3;}
  if(wave>0){const left=NET.mode==='client'?snapN-1:enemies.filter(x=>!x.dead).length+queue.length;if(left<=0&&state==='play'){timeScale=0.12;slowT=1;if(mine){styleAdd(40,'ปิดเวฟ!');}}}
  if(mine){let sAdd=18,lbl=null;if(o.glory){sAdd+=60;lbl='กลอรี่คิล';}else if(head&&!o.ric){sAdd+=30;lbl='หัว!';}
@@ -486,7 +487,7 @@ function killCat(e,head,src,o={}){
   S.squish();e.corpse=10;e.vy=0;e.fallDir=Math.random()<0.5?1:-1;blood(gp.x,cy,gp.z,24,4,0.07,o.dir);decal(gp.x,gp.z,1.4*e.s);
  }
  demonMeow(e.type==='kitten'?1.5:e.type==='persian'?0.7:e.type==='boss'?0.4:1);
- feed(`<b>${esc(mine?myName():NET.mateName)}</b> ${src?'['+src+']':''} ${e.C.name}${o.glory?' <em>· กลอรี่คิล!</em>':o.gib?' <em>· กระจุย!</em>':head?' <em>· หัว!</em>':''}`);
+ feed(`<b style="color:${pColor(mine?NET.me:o.by)}">${esc(mine?myName():nameOf(o.by))}</b> ${src?'['+src+']':''} ${e.C.name}${o.glory?' <em>· กลอรี่คิล!</em>':o.gib?' <em>· กระจุย!</em>':head?' <em>· หัว!</em>':''}`);
  // drops
  if(o.glory){const n=Math.round(5*(1+U('glory')*0.5));for(let i=0;i<n;i++)spawnPickup(gp.x,gp.z,'hp',10);if(U('glory'))for(let i=0;i<2+U('glory');i++)spawnPickup(gp.x,gp.z,'ar',5);}
  if(Math.random()<0.5)spawnPickup(gp.x,gp.z,'ammo');
@@ -644,13 +645,14 @@ function update(rdt){
 
  // ----- co-op: revive, network ticks -----
  if(NET.mode){
-  if(P.down){if(R.on&&!R.down&&Math.hypot(R.x-P.pos.x,R.z-P.pos.z)<2.8){P.revT+=rdt;if(P.revT>=3){P.down=false;P.hp=P.maxHp*0.4;P.revT=0;showBanner('ลุกแล้ว!',esc(NET.mateName)+' ช่วยไว้');S.pick(900);}}else P.revT=Math.max(0,P.revT-rdt*0.5);}
+  if(P.down){let helper=null;for(const m of MATES.values())if(m.on&&!m.down&&Math.hypot(m.x-P.pos.x,m.z-P.pos.z)<2.8){helper=m;break;}
+   if(helper){P.revT+=rdt;if(P.revT>=3){P.down=false;P.hp=P.maxHp*0.4;P.revT=0;showBanner('ลุกแล้ว!',esc(helper.name)+' ช่วยไว้');S.pick(900);}}else P.revT=Math.max(0,P.revT-rdt*0.5);}
   netT+=rdt;if(netT>=0.05){netT=0;NET.send({t:'p',x:+P.pos.x.toFixed(2),y:+P.pos.y.toFixed(2),z:+P.pos.z.toFixed(2),yw:+P.yaw.toFixed(3),pt:+P.pitch.toFixed(3),c:P.cur,hp:Math.ceil(P.hp),mh:P.maxHp,dn:P.down?1:0,rv:+P.revT.toFixed(2)});if(NET.mode==='host')NET.send(buildSnap());}
-  if(NET.mode==='host'&&P.down&&(!R.on||R.down)){NET.send({t:'over'});endRun();return;}
+  if(NET.mode==='host'&&P.down&&[...MATES.values()].every(m=>!m.on||m.down)){NET.send({t:'over'});endRun();return;}
  }
  updateAvatar(rdt);
  // ----- spawning -----
- if(NET.mode!=='client'&&queue.length){spawnT-=dt;const alive=enemies.filter(e=>!e.dead).length;if(spawnT<=0&&alive<(20+wave)*(NET.mode?1.4:1)){spawnEnemy(queue.shift());spawnT=Math.max(0.14,0.7-wave*0.035)*(NET.mode?0.75:1);}}
+ if(NET.mode!=='client'&&queue.length){spawnT-=dt;const alive=enemies.filter(e=>!e.dead).length;if(spawnT<=0&&alive<(20+wave)*(1+0.2*(pN()-1))){spawnEnemy(queue.shift());spawnT=Math.max(0.12,0.7-wave*0.035)/(1+0.25*(pN()-1));}}
  // ----- enemies -----
  const px=P.pos.x,pz=P.pos.z;
  if(NET.mode==='client')clientEnemies(dt);else hostEnemies(dt);
@@ -662,7 +664,7 @@ function update(rdt){
   for(let i=0;i<enemies.length;i++){const a=enemies[i];if(a.dead)continue;for(let j=i+1;j<enemies.length;j++){const b=enemies[j];if(b.dead||!!a.C.fly!==!!b.C.fly)continue;
    const dx=a.g.position.x-b.g.position.x,dz=a.g.position.z-b.g.position.z,r=a.rad+b.rad,dd=dx*dx+dz*dz;if(dd<r*r&&dd>1e-6&&Math.abs(a.y-b.y)<1){const d=Math.sqrt(dd),o=(r-d)/d*0.5;const wa=a.type==='boss'?0:b.type==='boss'?1:0.5,wb=1-wa;
     a.g.position.x+=dx*o*wa*2;a.g.position.z+=dz*o*wa*2;b.g.position.x-=dx*o*wb*2;b.g.position.z-=dz*o*wb*2;}}}
-  const pls=[[px,pz,P.pos.y]];if(NET.mode==='host'&&R.on)pls.push([R.x,R.z,R.y]);
+  const pls=[[px,pz,P.pos.y]];if(NET.mode==='host')for(const m of MATES.values())if(m.on)pls.push([m.x,m.z,m.y]);
   for(const e of enemies){if(e.dead||e.C.fly)continue;for(const [qx,qz,qy] of pls){const gp=e.g.position,dx=gp.x-qx,dz=gp.z-qz,r=e.rad+0.4,dd=dx*dx+dz*dz;if(dd<r*r&&dd>1e-6&&Math.abs(qy-e.y)<1.2*e.s){const d=Math.sqrt(dd);gp.x+=dx/d*(r-d);gp.z+=dz/d*(r-d);}}}
  }else{
   for(const e of enemies){if(e.dead||e.C.fly)continue;const gp=e.g.position,dx=P.pos.x-gp.x,dz=P.pos.z-gp.z,r=e.rad+0.4,dd=dx*dx+dz*dz;if(dd<r*r&&dd>1e-6&&Math.abs(P.pos.y-gp.y)<1.2*e.s){const d=Math.sqrt(dd);P.pos.x+=dx/d*(r-d)*0.6;P.pos.z+=dz/d*(r-d)*0.6;}}
@@ -674,20 +676,21 @@ function update(rdt){
    if(hitE||ob||q.y<0.05||Math.abs(q.x)>A||Math.abs(q.z)>A){p.life=0;
     if(p.kind==='bfg'){if(!p.mate)P.stat.hits++;bfgBlast(q.clone(),p);}
     else if(p.kind==='rocket'){if(!p.visual){if(explode(q.clone(),p.r||4.5,p.dmg,true,'จรวดปลาทู',p.by)>0&&!p.mate)P.stat.hits++;}}
-    else{if(hitE&&!p.mate)P.stat.hits++;if(hitE&&!p.visual){_e.copy(p.v).normalize();damage(hitE,p.dmg,_e,2.5,false,'พลาสม่า',{point:q.clone(),dist:q.distanceTo(P.pos),by:p.by==='c'?'c':undefined});}
+    else{if(hitE&&!p.mate)P.stat.hits++;if(hitE&&!p.visual){_e.copy(p.v).normalize();damage(hitE,p.dmg,_e,2.5,false,'พลาสม่า',{point:q.clone(),dist:q.distanceTo(P.pos),by:p.by});}
      if(ob&&ob.barrel&&!p.visual)hitBarrel(ob,GUNS[3].dmg);
      for(let i=0;i<6;i++)fx(q.x,q.y,q.z,{color:0x58c8ff,s0:0.3,s1:0.05,life:0.3,vx:rand(-5,5),vy:rand(-2,5),vz:rand(-5,5)});fx(q.x,q.y,q.z,{color:0x3a90ff,s0:0.3,s1:1.4,life:0.18});S.zap();
-     if(p.ch&&!p.visual)for(const e of enemies){if(e.dead||e===hitE)continue;_d.copy(e.g.position);_d.y+=0.6*e.s;if(_d.distanceTo(q)<1.6+p.ch*0.6){damage(e,8*p.ch*(p.by==='c'?1:P.dmgMul),null,0,false,'ไฟฟ้า',{by:p.by==='c'?'c':undefined});tracer(q,_d,0x8ad8ff,0.03,0.08);}}}}}
+     if(p.ch&&!p.visual)for(const e of enemies){if(e.dead||e===hitE)continue;_d.copy(e.g.position);_d.y+=0.6*e.s;if(_d.distanceTo(q)<1.6+p.ch*0.6){damage(e,8*p.ch*(p.by===undefined?P.dmgMul:1),null,0,false,'ไฟฟ้า',{by:p.by});tracer(q,_d,0x8ad8ff,0.03,0.08);}}}}}
   if(p.kind==='bfg'&&p.life>0){p.spin.material.rotation+=dt*6;p.zapT-=dt;if(Math.random()<dt*30)fx(p.m.position.x,p.m.position.y,p.m.position.z,{color:0x6aff4a,s0:1.2,s1:0.1,life:0.4,vx:rand(-2,2),vy:rand(-2,2),vz:rand(-2,2)});
-   if(p.zapT<=0){p.zapT=0.12;for(const e of enemies){if(e.dead)continue;_d.copy(e.g.position);_d.y+=0.6*e.s;if(_d.distanceTo(p.m.position)<7){tracer(p.m.position.clone(),_d.clone(),0xaaff8a,0.035,0.1);if(!p.visual)damage(e,22,null,0,false,'น้ำมนต์',{by:p.by==='c'?'c':undefined});}}}}
+   if(p.zapT<=0){p.zapT=0.12;for(const e of enemies){if(e.dead)continue;_d.copy(e.g.position);_d.y+=0.6*e.s;if(_d.distanceTo(p.m.position)<7){tracer(p.m.position.clone(),_d.clone(),0xaaff8a,0.035,0.1);if(!p.visual)damage(e,22,null,0,false,'น้ำมนต์',{by:p.by});}}}}
   if(p.kind==='rocket'&&p.life>0){p.trail-=dt;if(p.trail<=0){p.trail=0.015;fx(p.m.position.x,p.m.position.y,p.m.position.z,{tex:smokeTex,add:false,color:0x4a4040,s0:0.3,s1:1.4,life:0.9,vy:0.4,op:0.6});fx(p.m.position.x,p.m.position.y,p.m.position.z,{color:0xff7a20,s0:0.5,s1:0.1,life:0.12});}}
   p.life-=dt;if(p.life<=0)scene.remove(p.m);}
  projs=projs.filter(p=>p.life>0);
+ {const bq=projs.find(p=>p.kind==='bfg');bfgLight.intensity=bq?60:0;if(bq)bfgLight.position.copy(bq.m.position);}
  // enemy fireballs
  if(NET.mode!=='client')for(const s of eprojs){s.life-=dt;s.m.position.addScaledVector(s.v,dt);const p=s.m.position;s.trail-=dt;if(s.trail<=0){s.trail=0.03;fx(p.x,p.y,p.z,{color:0xff5a10,s0:0.6*s.size,s1:0.1,life:0.3});}
   if(p.y<0.1||insideObstacleH(p.x,p.z,p.y)||Math.abs(p.x)>A||Math.abs(p.z)>A)s.life=0;
   const dy=p.y-(P.pos.y+0.9);if(!P.down&&Math.hypot(p.x-px,p.z-pz)<0.5+0.25*s.size&&Math.abs(dy)<1.1){hurt(s.dmg,false,p.x-s.v.x,p.z-s.v.z);s.life=0;}
-  if(s.life>0&&NET.mode==='host'&&R.on&&!R.down&&Math.hypot(p.x-R.x,p.z-R.z)<0.5+0.25*s.size&&Math.abs(p.y-(R.y+0.9))<1.1){NET.send({t:'hurt',d:s.dmg,fx:p.x-s.v.x,fz:p.z-s.v.z});s.life=0;}
+  if(s.life>0&&NET.mode==='host')for(const m of MATES.values()){if(m.on&&!m.down&&Math.hypot(p.x-m.x,p.z-m.z)<0.5+0.25*s.size&&Math.abs(p.y-(m.y+0.9))<1.1){NET.sendTo(m.pid,{t:'hurt',d:s.dmg,fx:p.x-s.v.x,fz:p.z-s.v.z});s.life=0;break;}}
   if(s.life<=0){for(let i=0;i<8;i++)fx(p.x,p.y,p.z,{color:pick([0xff5a10,0xffa030]),s0:0.6,s1:0.1,life:0.4,vx:rand(-4,4),vy:rand(0,4),vz:rand(-4,4)});scene.remove(s.m);}}
  eprojs=eprojs.filter(s=>s.life>0);
  // shockwave rings
@@ -753,16 +756,17 @@ function enableDrag(){dragLook=true;const h=$('#hint');h.hidden=false;h.textCont
 function unlock(){if(document.pointerLockElement){expectUnlock=true;document.exitPointerLock();}}
 document.addEventListener('pointerlockchange',()=>{lockPending=false;locked=document.pointerLockElement===cv;if(!locked){firing=false;if(state==='play'&&!expectUnlock)pause();expectUnlock=false;}});
 document.addEventListener('pointerlockerror',enableDrag);
-function hideAll(){['#menu','#shop','#upgrade','#pause','#over','#coop','#wait'].forEach(s=>$(s).hidden=true);}
+function hideAll(){['#menu','#shop','#upgrade','#pause','#over','#coop','#wait'].forEach(s=>$(s).hidden=true);$('#chatBar').hidden=true;}
 let pendingFree=0,upOpts=[];
 function startGame(){audio();startMusic();hideAll();clearMenuCats();newRun();state='play';$('#hud').hidden=false;$('#touch').hidden=!isTouch;lastTime=performance.now();lock();
- readyLocal=false;readyRemote=false;if(NET.mode)ensureAvatar();
+ readyLocal=false;for(const m of MATES.values())m.wready=false;if(NET.mode){NET.started=true;const k=NET.me;P.pos.set(((k%3)-1)*2.2,0,4+Math.floor(k/3)*2.2);}
  const fr=upLv('start');if(fr>0){pendingFree=fr;openUpgrade(true);}else readyUp();}
-let readyLocal=false,readyRemote=false;
+let readyLocal=false;
 function readyUp(){if(!NET.mode){state='play';lastTime=performance.now();lock();startWave();return;}
- readyLocal=true;state='wait';unlock();$('#wait').hidden=false;$('#waitText').textContent=NET.mode==='host'?'รอ '+NET.mateName+' พร้อม…':'รอโฮสต์เริ่มเวฟต่อไป…';
+ readyLocal=true;state='wait';unlock();$('#wait').hidden=false;waitText();
  if(NET.mode==='client')NET.send({t:'rdy'});else tryStartWave();}
-function tryStartWave(){if(NET.mode!=='host'||!readyLocal||!readyRemote)return;readyLocal=readyRemote=false;beginWave();startWave();NET.send({t:'wave',w:wave});}
+function waitText(){if(NET.mode==='host'){const notR=[...MATES.values()].filter(m=>!m.wready).map(m=>m.name);$('#waitText').textContent=notR.length?'รอ '+notR.join(', ')+' เลือกอัปเกรด…':'กำลังเริ่ม…';}else $('#waitText').textContent='รอเพื่อนทุกคนพร้อม แล้วหัวห้องจะเริ่มเวฟต่อไป…';}
+function tryStartWave(){if(NET.mode!=='host'||!readyLocal)return;if([...MATES.values()].some(m=>!m.wready)){if(state==='wait')waitText();return;}readyLocal=false;for(const m of MATES.values())m.wready=false;beginWave();startWave();NET.send({t:'wave',w:wave});}
 function beginWave(){$('#wait').hidden=true;state='play';lastTime=performance.now();lock();if(P.down){P.down=false;P.hp=P.maxHp*0.3;}}
 function openUpgrade(free){state='upgrade';firing=false;unlock();
  const pool=UPS.filter(u=>U(u.id)<u.max);const opts=[];while(opts.length<3&&pool.length)opts.push(pool.splice((Math.random()*pool.length)|0,1)[0]);upOpts=opts;
@@ -786,9 +790,10 @@ function endRun(){if(state==='over')return;state='over';firing=false;unlock();dr
  $('#overText').textContent='Aritat ล้มลงกลางซอยนรกที่เวฟ '+wave+' ฝูงแมวปีศาจรุมแทะจนเหลือแต่รองเท้า เก็บเหรียญไปซื้อของแล้วกลับมาล้างแค้น';
  $('#overStats').innerHTML=statHtml([['ถึงเวฟ',wave],['ไล่แมวไป',kills],['ความแม่น',accPct()+'%'],['ยิงโดนหัว',P.stat.heads+' นัด'],['หัวติดกันสูงสุด',P.stat.bestStreak],['ยิงไกลสุด',Math.round(P.stat.longest)+' ม.'],['แรงค์สูงสุด',RANKS[P.stat.bestRank][1]],['เหรียญที่ได้','+'+earned]]);
  if(P.stat.bestRank>(save.best.rank||0))save.best.rank=P.stat.bestRank;if(P.stat.bestStreak>(save.best.streak||0))save.best.streak=P.stat.bestStreak;persist();
- $('#hud').hidden=true;$('#touch').hidden=true;$('#over').hidden=false;demonMeow(0.5,true);screenSplat(10,true);}
+ $('#hud').hidden=true;$('#touch').hidden=true;$('#over').hidden=false;demonMeow(0.5,true);screenSplat(10,true);
+ $('#againBtn').textContent=NET.mode?'กลับห้อง Lobby':NET.wasOnline?'กลับไปหน้าเล่นออนไลน์':'ลงนรกอีกรอบ';if(NET.mode){NET.started=false;removeAvatars();if(NET.mode==='host')dirSendReg();}}
 const statHtml=a=>a.map(([k,v])=>`<div>${k}<b>${v}</b></div>`).join('');
-function showMenu(){state='menu';hideAll();removeAvatar();if(enemies){enemies.forEach(e=>{if(!e.gone)disposeCat(e);});enemies=[];}unlock();$('#hud').hidden=true;$('#touch').hidden=true;$('#menu').hidden=false;$('#menuCoins').textContent='🪙 '+save.coins;
+function showMenu(){state='menu';hideAll();removeAvatars();if(enemies){enemies.forEach(e=>{if(!e.gone)disposeCat(e);});enemies=[];}unlock();$('#hud').hidden=true;$('#touch').hidden=true;$('#menu').hidden=false;$('#menuCoins').textContent='🪙 '+save.coins;
  $('#bestLine').textContent=save.runs?`สถิติดีที่สุด: เวฟ ${save.best.wave} · ไล่แมว ${save.best.kills} ตัว · แรงค์ ${RANKS[save.best.rank||0][1]} · หัวติดกัน ${save.best.streak||0} นัด`:'';}
 let shopFrom='menu';
 function openShop(from){shopFrom=from;hideAll();$('#shop').hidden=false;renderShop();}
@@ -797,11 +802,12 @@ function renderShop(){$('#shopCoins').textContent='🪙 '+save.coins;const box=$
   d.innerHTML=`<span class="ic">${s.icon}</span><span class="nm">${s.name}</span><span class="ds">${s.desc}</span><span class="pips">${Array.from({length:s.max},(_,i)=>`<i class="${i<l?'on':''}"></i>`).join('')}</span>`;
   const b=document.createElement('button');b.className='b'+(maxed||save.coins<c?' alt':'');b.textContent=maxed?'เต็มแล้ว':'ซื้อ 🪙 '+c;b.disabled=maxed||save.coins<c;
   b.onclick=()=>{if(save.coins>=c&&!maxed){save.coins-=c;save.up[s.id]=l+1;persist();S.coin();renderShop();}};d.appendChild(b);box.appendChild(d);}}
-$('#startBtn').onclick=()=>{netClose();startGame();};$('#againBtn').onclick=()=>{if(NET.mode==='host'&&NET.connected){NET.send({t:'start'});startGame();}else if(NET.mode==='client'){$('#overText').textContent='รอ '+NET.mateName+' (โฮสต์) กดเล่นอีกรอบ…';}else startGame();};$('#menuBtn').onclick=showMenu;
+$('#startBtn').onclick=()=>{netClose();startGame();};$('#againBtn').onclick=()=>{if(NET.mode)backToLobby();else if(NET.wasOnline){NET.wasOnline=false;openCoop();}else startGame();};$('#menuBtn').onclick=showMenu;
 $('#shopBtn').onclick=()=>{audio();startMusic();openShop('menu');};$('#overShopBtn').onclick=()=>openShop('over');
 $('#shopBack').onclick=()=>{if(shopFrom==='over'){hideAll();$('#over').hidden=false;}else showMenu();};
 $('#resumeBtn').onclick=resume;$('#quitBtn').onclick=()=>{$('#pause').hidden=true;state='play';if(NET.mode){NET.send({t:'bye'});netClose();}endRun();};
 $('#menuBtn').addEventListener('click',()=>{if(NET.mode){NET.send({t:'bye'});netClose();}});
+$('#overText').addEventListener('click',()=>{});
 function toggleMute(){muted=!muted;$('#muteBtn').textContent=muted?'เปิดเสียง':'ปิดเสียง';if(master)master.gain.setTargetAtTime(muted?0:0.9,AC.currentTime,0.05);}
 $('#muteBtn').onclick=toggleMute;
 function refreshSharp(){$('#sharpBtn').textContent='โหมดมือแม่น: '+(save.sharp?'เปิด (ยิงตัวเบา ยิงหัวแรง เหรียญ x1.5)':'ปิด');}
@@ -809,7 +815,7 @@ $('#sharpBtn').onclick=()=>{save.sharp=!save.sharp;persist();refreshSharp();};re
 const toggleQ=()=>{save.quality=save.quality==='high'?'medium':save.quality==='medium'?'low':'high';persist();applyQuality();};
 $('#qBtn').onclick=toggleQ;$('#qBtn2').onclick=toggleQ;
 const toggleMusic=()=>{audio();startMusic();setMusic(!music.on);};$('#musicBtn').onclick=toggleMusic;$('#musicBtn2').onclick=toggleMusic;
-function applyBright(){const b=clamp(+save.bright||1,0.4,1.6);renderer.toneMappingExposure=1.15*b;if(post)post.setBright(b);}
+function applyBright(){const b=clamp(+save.bright||1,0.4,2.2);renderer.toneMappingExposure=1.3*b;if(post)post.setBright(b);}
 ['#bright','#bright2'].forEach(id=>{const el=$(id);el.value=save.bright||1;el.oninput=()=>{save.bright=+el.value;['#bright','#bright2'].forEach(o=>$(o).value=save.bright);applyBright();persist();};});
 applyBright();
 {const f=$('#fov');f.value=save.fov||80;$('#fovVal').textContent=f.value;f.oninput=()=>{save.fov=+f.value;$('#fovVal').textContent=f.value;persist();};}
@@ -828,7 +834,8 @@ addEventListener('keydown',e=>{const k=e.key.toLowerCase();if([' ','arrowup','ar
  if(state==='play'){if(k===' ')jump();if('123456'.includes(k)&&k.length===1)switchGun(+k-1);if(k==='c')tossCoin();if(k==='q')switchGun(P.last);if(k==='shift')dash();if(k==='f'||k==='e'||k==='v')melee();if(k==='p'||(k==='escape'&&dragLook))pause();}
  else if(state==='paused'&&k==='p')resume();
  else if(state==='upgrade'){const n=parseInt(k);if(n>=1&&n<=upOpts.length)pickUp(upOpts[n-1]);}
- if(k==='m')toggleMute();});
+ if(k==='m')toggleMute();
+ if(NET.mode&&inGame()&&(k==='t'||k==='enter')&&$('#chatBar').hidden){e.preventDefault();keys.clear();firing=false;$('#chatBar').hidden=false;setTimeout(()=>$('#chatBarIn').focus(),0);}});
 addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 addEventListener('blur',()=>{keys.clear();firing=false;if(P)P.ads=false;if(state==='play'&&(dragLook||isTouch))pause();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='play')pause();});
@@ -846,68 +853,165 @@ cv.addEventListener('touchend',tEnd);cv.addEventListener('touchcancel',tEnd);
 function tbtn(id,down,up){const b=$(id);b.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();down();},{passive:false});b.addEventListener('touchend',e=>{e.preventDefault();up&&up();},{passive:false});b.addEventListener('click',()=>{if(!isTouch)down();});}
 tbtn('#tFire',()=>{firing=true;},()=>firing=false);tbtn('#tJump',jump);tbtn('#tDash',dash);tbtn('#tMelee',melee);tbtn('#tSwap',()=>switchGun((P.cur+1)%GUNS.length));tbtn('#tZoom',()=>{P.ads=!P.ads;S.zoom();});tbtn('#tCoin',tossCoin);tbtn('#tPause',pause);
 
-/* ======================= CO-OP ======================= */
+/* ======================= ONLINE (up to 6 players, host-authoritative star) ======================= */
 let netT=0,snapN=0;
-const R={on:false,x:0,y:0,z:0,yaw:0,pitch:0,cur:0,hp:100,mh:100,down:false,rev:0,tx:0,ty:0,tz:0};
+const MAXP=6;
+const PCOLS=['#ff9a3a','#58c8ff','#9be15d','#ff6ad5','#ffd23f','#b48aff'];
+const pColor=pid=>PCOLS[(pid||0)%PCOLS.length];
+const MATES=new Map();   // pid -> remote player
 const TYPES=Object.keys(CATS);
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function myName(){return (save.name||'Aritat').slice(0,14);}
-const NET={mode:null,connected:false,conn:null,peer:null,bc:null,code:'',mateName:'เพื่อน',
- send(o){if(!this.connected)return;try{if(this.bc)this.bc.postMessage({from:this.mode,o});else if(this.conn&&this.conn.open)this.conn.send(o);}catch(err){}}};
-function netStatus(t){$('#coopStatus').textContent=t;}
-function netClose(){try{if(NET.conn)NET.conn.close();}catch(e){}try{if(NET.peer)NET.peer.destroy();}catch(e){}try{if(NET.bc)NET.bc.close();}catch(e){}
- NET.mode=null;NET.connected=false;NET.conn=null;NET.peer=null;NET.bc=null;R.on=false;removeAvatar();$('#mate').hidden=true;}
+function nameOf(pid){if(pid===undefined||pid===NET.me)return myName();const m=MATES.get(pid);return m?m.name:'เพื่อน';}
+function pN(){return NET.mode?1+[...MATES.values()].length:1;}
+function ownBy(b){return (b===undefined||b===null||b===NET.me)?undefined:b;}
+function newMate(pid,name){return {pid,name:String(name||'เพื่อน').slice(0,14),ready:false,wready:false,on:false,x:0,y:0,z:0,tx:0,ty:0,tz:0,yaw:0,pitch:0,cur:0,hp:100,mh:100,down:false,rev:0,av:null};}
+const NET={mode:null,me:0,code:'',title:'',pub:true,peer:null,conn:null,conns:new Map(),joined:false,started:false,ready:false,local:false,pidN:1,
+ get connected(){return this.mode==='host'||(this.mode==='client'&&this.joined);},
+ send(o){o.from=this.me;if(this.mode==='host'){for(const c of this.conns.values())if(c.open)try{c.send(o);}catch(e){}}else if(this.conn&&this.conn.open&&this.joined)try{this.conn.send(o);}catch(e){}},
+ sendTo(pid,o){o.from=this.me;const c=this.conns.get(pid);if(c&&c.open)try{c.send(o);}catch(e){}},
+ relay(o,except){for(const [pid,c] of this.conns)if(pid!==except&&c.open)try{c.send(o);}catch(e){}}};
+function PeerImpl(){return NET.local?MockPeer:Peer;}
+function netStatus(t){$('#coopStatus').textContent=t||'';}
 function genCode(){const a='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<5;i++)c+=a[(Math.random()*a.length)|0];return c;}
 const PEER_OPT={debug:0,config:{iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun.cloudflare.com:3478']},{urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}]}};
 function inviteLink(c){return /^https?:/.test(location.protocol)?location.origin+location.pathname+'#r='+c:'';}
-function onlineOK(){return typeof RTCPeerConnection!=='undefined'&&!!Peer;}
-function netHost(local){netClose();save.name=$('#coopName').value.trim()||'Aritat';persist();NET.mode='host';NET.code=genCode();
- $('#roomBox').hidden=false;$('#roomCode').textContent=NET.code;$('#copyLink').hidden=!inviteLink(NET.code);$('#coopStart').hidden=true;
- if(local){NET.bc=new BroadcastChannel('aritat-'+NET.code);NET.bc.onmessage=ev=>{if(ev.data.from!=='host')onNet(ev.data.o);};netStatus('เปิดอีกแท็บ แล้วเข้าร่วมด้วยรหัส '+NET.code);return;}
- if(!onlineOK()){netStatus('หน้านี้ต่อออนไลน์ไม่ได้ ให้เปิดไฟล์เกม HTML ในเบราว์เซอร์ Chrome หรือ Edge โดยตรง');return;}
- netStatus('กำลังเปิดห้อง…');
- try{const peer=new Peer('aritat-soi-'+NET.code,PEER_OPT);NET.peer=peer;
-  peer.on('open',()=>netStatus(inviteLink(NET.code)?'เปิดห้องแล้ว กด "คัดลอกลิงก์ชวน" ส่งให้เพื่อน แล้วรอเพื่อนเข้า':'เปิดห้องแล้ว ส่งรหัส '+NET.code+' ให้เพื่อน แล้วรอเพื่อนเข้า'));
-  peer.on('connection',c=>{if(NET.conn&&NET.conn.open){c.close();return;}NET.conn=c;c.on('data',onNet);c.on('close',onNetLost);c.on('open',()=>{});});
-  peer.on('error',err=>{if(err.type==='unavailable-id'){netHost(false);return;}netStatus('เปิดห้องไม่สำเร็จ ('+(err.type||'error')+') ลองกดสร้างห้องใหม่');});
-  peer.on('disconnected',()=>{try{if(!NET.connected&&NET.peer===peer)peer.reconnect();}catch(e){}});
- }catch(err){netStatus('เปิดห้องไม่สำเร็จ: '+err.message);}}
-function netJoin(local){netClose();save.name=$('#coopName').value.trim()||'เพื่อน';persist();const code=$('#joinCode').value.trim().toUpperCase();if(code.length<4){netStatus('ใส่รหัสห้อง 5 ตัวก่อน');return;}
- NET.mode='client';NET.code=code;$('#roomBox').hidden=true;$('#coopStart').hidden=true;
- if(local){NET.bc=new BroadcastChannel('aritat-'+code);NET.bc.onmessage=ev=>{if(ev.data.from!=='client')onNet(ev.data.o);};NET.connected=true;NET.send({t:'hello',n:myName()});netStatus('กำลังเข้าห้อง…');return;}
- if(!onlineOK()){netStatus('หน้านี้ต่อออนไลน์ไม่ได้ ให้เปิดไฟล์เกม HTML ในเบราว์เซอร์ Chrome หรือ Edge โดยตรง');return;}
- netStatus('กำลังเชื่อมต่อ…');
- try{const peer=new Peer(PEER_OPT);NET.peer=peer;
-  peer.on('open',()=>{const c=peer.connect('aritat-soi-'+code,{reliable:true,serialization:'json'});NET.conn=c;const to=setTimeout(()=>{if(NET.conn===c&&!NET.connected)netStatus('ต่อไม่ติด เน็ตของใครสักคนอาจบล็อกการต่อตรง ลองเปลี่ยนไปใช้ Wi-Fi อื่นหรือแชร์เน็ตมือถือ แล้วกดเข้าร่วมอีกครั้ง');},15000);c.on('open',()=>{clearTimeout(to);NET.connected=true;NET.send({t:'hello',n:myName()});});c.on('data',onNet);c.on('close',onNetLost);});
-  peer.on('error',err=>netStatus(err.type==='peer-unavailable'?'ไม่พบห้อง '+code+' เช็กรหัสอีกที':'เชื่อมต่อไม่สำเร็จ ('+(err.type||'error')+')'));
- }catch(err){netStatus('เชื่อมต่อไม่สำเร็จ: '+err.message);}}
-function onNetLost(){if(!NET.mode)return;const wasClient=NET.mode==='client';const inGame=['play','paused','wait','upgrade'].includes(state);
- feed('<em>'+esc(NET.mateName)+' หลุดจากห้อง</em>');netClose();
- if(!inGame){netStatus('การเชื่อมต่อหลุด');return;}
- if(wasClient){endRun();$('#overText').textContent='หลุดจากห้องของโฮสต์ รอบนี้จบแค่นี้ เหรียญที่เก็บได้ยังอยู่';}
- else if(state==='wait'){beginWave();startWave();}}
+function onlineOK(){return NET.local||(typeof RTCPeerConnection!=='undefined'&&!!Peer);}
+function inGame(){return ['play','paused','wait','upgrade'].includes(state);}
+function saveName(){const n=$('#coopName').value.trim();if(n){save.name=n.slice(0,14);persist();}}
+function netClose(){if(NET.mode==='host'&&NET.code)dirUnreg();
+ try{if(NET.conn)NET.conn.close();}catch(e){}for(const c of NET.conns.values())try{c.close();}catch(e){}try{if(NET.peer)NET.peer.destroy();}catch(e){}
+ NET.mode=null;NET.me=0;NET.joined=false;NET.started=false;NET.ready=false;NET.conn=null;NET.peer=null;NET.conns.clear();removeAvatars();MATES.clear();$('#mates').hidden=true;}
+// ---------- lobby screens ----------
+function showEntry(msg){$('#coopEntry').hidden=false;$('#coopRoom').hidden=true;netStatus(msg||'');dirEnsure();dirRefresh();}
+function showRoom(){$('#coopEntry').hidden=true;$('#coopRoom').hidden=false;renderRoom();}
+function openCoop(){NET.wasOnline=false;audio();startMusic();hideAll();$('#coop').hidden=false;state='menu';$('#coopName').value=save.name||'';if(!$('#roomTitle').value)$('#roomTitle').placeholder='ซอยของ '+myName();
+ if(NET.mode&&NET.connected)showRoom();else{if(NET.mode)netClose();showEntry(onlineOK()?'':'เบราว์เซอร์นี้ไม่รองรับการเล่นออนไลน์ ลองใช้ Chrome หรือ Edge');}}
+function renderRoom(){
+ $('#roomHead').textContent=NET.title||'ห้อง';$('#roomCode').textContent=NET.code;$('#copyLink').hidden=!inviteLink(NET.code);
+ const list=[];if(NET.mode==='host')list.push({pid:NET.me,name:myName(),host:true,ready:true,me:true});
+ else{list.push({pid:0,name:NET.hostName||'หัวห้อง',host:true,ready:true});}
+ for(const m of MATES.values())if(m.pid!==0)list.push({pid:m.pid,name:m.name,ready:m.ready});
+ if(NET.mode==='client')list.push({pid:NET.me,name:myName(),ready:NET.ready,me:true});
+ list.sort((a,b)=>a.pid-b.pid);
+ $('#playerList').innerHTML=list.map(p=>`<li><i style="background:${pColor(p.pid)}"></i>${esc(p.name)}${p.me?' <small>(คุณ)</small>':''}<span class="st ${p.host||p.ready?'ok':''}">${p.host?'👑 หัวห้อง':p.ready?'✔ พร้อม':'ยังไม่พร้อม'}</span>${NET.mode==='host'&&!p.me?`<button class="linkbtn kick" data-k="${p.pid}">เตะ</button>`:''}</li>`).join('');
+ $('#playerList').querySelectorAll('.kick').forEach(b=>b.onclick=()=>kick(+b.dataset.k));
+ $('#pCount').textContent=list.length+'/'+MAXP;
+ const notReady=[...MATES.values()].filter(m=>!m.ready).length;
+ $('#coopStart').hidden=NET.mode!=='host';$('#readyBtn').hidden=NET.mode!=='client';
+ $('#readyBtn').textContent=NET.ready?'ยกเลิกพร้อม':'พร้อม!';
+ $('#coopStart').textContent=MATES.size===0?'เริ่มเล่นคนเดียว':notReady?'เริ่มเกม (รออีก '+notReady+' คน)':'เริ่มเกม!';
+ $('#coopStart').disabled=notReady>0;}
+function broadcastRoster(){if(NET.mode!=='host')return;NET.send({t:'roster',h:myName(),title:NET.title,pl:[...MATES.values()].map(m=>[m.pid,m.name,m.ready?1:0])});renderRoom();dirSendReg();}
+function chatLine(pid,text,sys){const log=$('#chatLog');const d=document.createElement('div');if(sys){d.className='sys';d.textContent=text;}else d.innerHTML=`<b style="color:${pColor(pid)}">${esc(nameOf(pid))}:</b> ${esc(text)}`;log.appendChild(d);while(log.children.length>80)log.firstChild.remove();log.scrollTop=1e9;
+ if(inGame()||state==='over'){const h=$('#chatHud');const e=d.cloneNode(true);h.appendChild(e);while(h.children.length>6)h.firstChild.remove();setTimeout(()=>e.remove(),8000);}}
+function sysChat(t){chatLine(0,t,true);if(NET.mode==='host')NET.send({t:'sys',x:t});}
+function sendChat(text){text=String(text||'').trim().slice(0,120);if(!text||!NET.mode)return;NET.send({t:'chat',x:text});chatLine(NET.me,text);}
+function kick(pid){const c=NET.conns.get(pid);if(!c)return;c.send({t:'deny',r:'หัวห้องเชิญคุณออกจากห้อง',from:0});setTimeout(()=>{try{c.close();}catch(e){}},200);}
+function backToLobby(){hideAll();$('#coop').hidden=false;state='menu';$('#hud').hidden=true;$('#touch').hidden=true;removeAvatars();if(enemies){enemies.forEach(e=>{if(!e.gone)disposeCat(e);});enemies=[];}
+ NET.ready=false;if(NET.mode==='client')NET.send({t:'lrdy',v:0});if(NET.mode&&NET.connected)showRoom();else showEntry('การเชื่อมต่อหลุด');}
+// ---------- host ----------
+function netHost(){netClose();saveName();if(!onlineOK()){netStatus('เบราว์เซอร์นี้ไม่รองรับการเล่นออนไลน์');return;}
+ NET.mode='host';NET.me=0;NET.pidN=1;NET.code=genCode();NET.title=($('#roomTitle').value.trim()||('ซอยของ '+myName())).slice(0,24);NET.pub=$('#roomPublic').checked;
+ MATES.clear();$('#chatLog').innerHTML='';showRoom();netStatus('กำลังเปิดห้อง…');
+ const peer=new (PeerImpl())('aritat-soi-'+NET.code,PEER_OPT);NET.peer=peer;
+ peer.on('open',()=>{if(NET.peer!==peer)return;netStatus(NET.pub?'เปิดห้องแล้ว ห้องนี้โชว์ในรายชื่อห้อง หรือส่งลิงก์ชวนให้เพื่อน':'เปิดห้องแล้ว (ห้องส่วนตัว) ส่งลิงก์ชวนหรือรหัสห้องให้เพื่อน');sysChat('เปิดห้อง '+NET.code+' แล้ว');dirEnsure();dirSendReg();});
+ peer.on('connection',c=>{c.on('data',m=>hostOnData(c,m));c.on('close',()=>hostOnClose(c));c.on('error',()=>hostOnClose(c));});
+ peer.on('error',err=>{if(NET.peer!==peer)return;if(err.type==='unavailable-id'&&!peer.open){netHost();return;}if(err.type==='peer-unavailable')return;netStatus('เปิดห้องไม่สำเร็จ ('+(err.type||'error')+') ลองกดสร้างห้องใหม่');});
+ peer.on('disconnected',()=>{try{if(NET.peer===peer&&!peer.destroyed)peer.reconnect();}catch(e){}});}
+function hostOnData(c,m){if(!m||!m.t||NET.mode!=='host')return;
+ if(m.t==='hello'){if(c.pid!==undefined)return;
+  if(NET.started){c.send({t:'deny',r:'ห้องนี้กำลังเล่นอยู่ รอจบรอบแล้วค่อยเข้าใหม่',from:0});setTimeout(()=>{try{c.close();}catch(e){}},300);return;}
+  if(MATES.size>=MAXP-1){c.send({t:'deny',r:'ห้องเต็มแล้ว ('+MAXP+' คน)',from:0});setTimeout(()=>{try{c.close();}catch(e){}},300);return;}
+  const pid=NET.pidN++;c.pid=pid;NET.conns.set(pid,c);const mt=newMate(pid,m.n);MATES.set(pid,mt);
+  c.send({t:'welcome',you:pid,code:NET.code,title:NET.title,h:myName(),from:0});broadcastRoster();sysChat(mt.name+' เข้าห้อง');S.coin();return;}
+ if(c.pid===undefined||!MATES.has(c.pid))return;
+ m.from=c.pid;
+ if(m.t==='p'||m.t==='pj'||m.t==='tr'||m.t==='chat')NET.relay(m,c.pid);
+ onNet(m);}
+function hostOnClose(c){if(c.pid===undefined||!MATES.has(c.pid))return;const mt=MATES.get(c.pid);NET.conns.delete(c.pid);MATES.delete(c.pid);removeAvatar(mt);
+ broadcastRoster();sysChat(mt.name+' ออกจากห้อง');if(inGame()){feed('<em>'+esc(mt.name)+' หลุดจากห้อง</em>');tryStartWave();}}
+// ---------- client ----------
+function netJoin(code){netClose();saveName();code=String(code||$('#joinCode').value).trim().toUpperCase();if(code.length<4){netStatus('ใส่รหัสห้อง 5 ตัวก่อน');return;}
+ if(!onlineOK()){netStatus('เบราว์เซอร์นี้ไม่รองรับการเล่นออนไลน์');return;}
+ NET.mode='client';NET.code=code;MATES.clear();$('#chatLog').innerHTML='';netStatus('กำลังเชื่อมต่อห้อง '+code+'…');
+ const peer=new (PeerImpl())(PEER_OPT);NET.peer=peer;
+ peer.on('open',()=>{if(NET.peer!==peer)return;const c=peer.connect('aritat-soi-'+code,{reliable:true,serialization:'json'});NET.conn=c;
+  const to=setTimeout(()=>{if(NET.conn===c&&!NET.joined)netStatus('ต่อไม่ติด เน็ตของใครสักคนอาจบล็อกการต่อตรง ลองเปลี่ยนไปใช้ Wi-Fi อื่นหรือแชร์เน็ตมือถือ แล้วลองใหม่');},15000);
+  c.on('open',()=>{clearTimeout(to);c.send({t:'hello',n:myName()});});
+  c.on('data',m=>{if(m&&m.t)onNet(m);});
+  c.on('close',()=>{if(NET.conn===c)onHostLost();});});
+ peer.on('error',err=>{if(NET.peer!==peer)return;netStatus(err.type==='peer-unavailable'?'ไม่พบห้อง '+code+' ห้องอาจปิดไปแล้ว':'เชื่อมต่อไม่สำเร็จ ('+(err.type||'error')+')');});}
+function onHostLost(msg){if(NET.mode!=='client')return;const was=inGame();netClose();NET.wasOnline=true;
+ if(was){endRun();$('#overText').textContent=msg||'หัวห้องปิดห้องหรือหลุดไป รอบนี้จบแค่นี้ เหรียญที่เก็บได้ยังอยู่';}
+ else if(!$('#coop').hidden)showEntry(msg||'หัวห้องปิดห้องแล้ว');}
+// ---------- messages ----------
 function onNet(m){if(!m||!m.t)return;
  switch(m.t){
-  case 'hello':if(NET.mode!=='host')return;if(NET.bc)NET.connected=true;else NET.connected=true;NET.mateName=String(m.n||'เพื่อน').slice(0,14);NET.send({t:'welcome',n:myName()});netStatus(NET.mateName+' เข้าห้องแล้ว กดเริ่มเกมได้เลย');$('#coopStart').hidden=false;S.coin();break;
-  case 'welcome':NET.mateName=String(m.n||'โฮสต์').slice(0,14);netStatus('เข้าห้องของ '+NET.mateName+' แล้ว รอโฮสต์กดเริ่มเกม');break;
-  case 'start':if(NET.mode==='client')startGame();break;
-  case 'p':R.on=true;R.tx=m.x;R.ty=m.y;R.tz=m.z;R.yaw=m.yw;R.pitch=m.pt;R.cur=m.c;R.hp=m.hp;R.mh=m.mh;R.down=!!m.dn;R.rev=m.rv||0;if(R.x===0&&R.z===0){R.x=m.x;R.y=m.y;R.z=m.z;}break;
-  case 's':if(NET.mode==='client'&&P&&['play','paused','wait','upgrade'].includes(state))applySnap(m);break;
-  case 'd':if(NET.mode==='host'){const e=enemies.find(x=>x.id===m.i);if(e&&!e.dead){if(m.gl&&!(e.stagger>0))return;damage(e,m.d,new THREE.Vector3(m.dx,0,m.dz),m.k,!!m.h,m.s,{point:new THREE.Vector3(m.px,m.py,m.pz),dist:m.ds,close:!!m.c,glory:!!m.gl,explosive:!!m.ex,by:'c'});}}break;
+  case 'welcome':if(NET.mode!=='client')return;NET.me=m.you;NET.joined=true;NET.title=m.title;NET.hostName=m.h;NET.code=m.code;showRoom();netStatus('เข้าห้องแล้ว กด "พร้อม!" แล้วรอหัวห้องเริ่มเกม');S.coin();break;
+  case 'deny':onHostLost(m.r);if(!$('#coop').hidden)showEntry(m.r);break;
+  case 'roster':if(NET.mode!=='client')return;{NET.hostName=m.h;NET.title=m.title;const seen=new Set();
+   for(const [pid,name,rd] of m.pl){if(pid===NET.me)continue;seen.add(pid);let mt=MATES.get(pid);if(!mt){mt=newMate(pid,name);MATES.set(pid,mt);}mt.name=name;mt.ready=!!rd;}
+   if(!MATES.has(0))MATES.set(0,newMate(0,m.h));seen.add(0);MATES.get(0).name=m.h;
+   for(const [pid,mt] of [...MATES])if(!seen.has(pid)){removeAvatar(mt);MATES.delete(pid);}
+   renderRoom();}break;
+  case 'lrdy':if(NET.mode==='host'){const mt=MATES.get(m.from);if(mt){mt.ready=!!m.v;broadcastRoster();}}break;
+  case 'chat':chatLine(m.from,m.x);break;
+  case 'sys':if(NET.mode==='client')chatLine(0,m.x,true);break;
+  case 'start':if(NET.mode==='client'){NET.ready=false;NET.started=true;startGame();}break;
+  case 'p':{let mt=MATES.get(m.from);if(!mt){if(NET.mode==='host')return;mt=newMate(m.from,'เพื่อน');MATES.set(m.from,mt);}
+   if(!mt.on){mt.x=m.x;mt.y=m.y;mt.z=m.z;}mt.on=true;mt.tx=m.x;mt.ty=m.y;mt.tz=m.z;mt.yaw=m.yw;mt.pitch=m.pt;mt.cur=m.c;mt.hp=m.hp;mt.mh=m.mh;mt.down=!!m.dn;mt.rev=m.rv||0;}break;
+  case 's':if(NET.mode==='client'&&P&&inGame())applySnap(m);break;
+  case 'd':if(NET.mode==='host'){const e=enemies.find(x=>x.id===m.i);if(e&&!e.dead){if(m.gl&&!(e.stagger>0))return;damage(e,m.d,new THREE.Vector3(m.dx,0,m.dz),m.k,!!m.h,m.s,{point:new THREE.Vector3(m.px,m.py,m.pz),dist:m.ds,close:!!m.c,glory:!!m.gl,explosive:!!m.ex,by:m.from});}}break;
   case 'k':if(NET.mode==='client'){const e=enemies.find(x=>x.id===m.i);if(!e||e.dead)return;if(e.tx!==undefined)e.g.position.set(e.tx,e.ty,e.tz);killCat(e,!!m.h,m.s,{gib:!!m.g,dir:new THREE.Vector3(m.dx,0,m.dz),glory:!!m.gl,dist:m.d,by:m.by,ric:m.s==='ริโคเชต์'});}break;
-  case 'x':if(NET.mode==='client'){const pos=new THREE.Vector3(m.x,m.y,m.z);explodeFx(pos,m.r,!!m.f);selfBlast(pos,m.r,m.s==='ถังแก๊ส'?'env':(m.by==='c'?'own':'mate'));}break;
+  case 'x':if(NET.mode==='client'){const pos=new THREE.Vector3(m.x,m.y,m.z);explodeFx(pos,m.r,!!m.f);selfBlast(pos,m.r,m.s==='ถังแก๊ส'?'env':(m.by===NET.me?'own':'mate'));}break;
   case 'pj':spawnNetProj(m);break;
   case 'bx':break;
   case 'tr':remoteShot(m);break;
   case 'hurt':if(P&&state!=='over'){hurt(m.d,false,m.fx,m.fz);}break;
   case 'sl':if(NET.mode==='client')slamAt(m.x,m.z,m.d);break;
-  case 'bh':if(NET.mode==='host'){const b=barrels.find(o=>o.idx===m.i&&!o.dead);if(b)hitBarrel(b,m.d,'c');}break;
+  case 'bh':if(NET.mode==='host'){const b=barrels.find(o=>o.idx===m.i&&!o.dead);if(b)hitBarrel(b,m.d,m.from);}break;
   case 'clr':if(NET.mode==='client'){waveClearT=1.6;showBanner('เคลียร์!','+'+(5+m.w)+' เหรียญ');coinsRun+=5+m.w;}break;
-  case 'rdy':if(NET.mode==='host'){readyRemote=true;tryStartWave();}break;
-  case 'wave':if(NET.mode==='client'){readyLocal=false;beginWave();wave=m.w;showBanner('WAVE '+wave,'ลุยด้วยกัน');S.wave();spawnBarrels();}break;
+  case 'rdy':if(NET.mode==='host'){const mt=MATES.get(m.from);if(mt)mt.wready=true;tryStartWave();}break;
+  case 'wave':if(NET.mode==='client'){readyLocal=false;beginWave();wave=m.w;showBanner('WAVE '+wave,'ลุยด้วยกัน '+pN()+' คน');S.wave();spawnBarrels();}break;
   case 'over':if(state!=='over'&&state!=='menu')endRun();break;
-  case 'bye':onNetLost();break;
+  case 'bye':if(NET.mode==='client'&&m.from===0)onHostLost();break;
  }}
+// ---------- public room directory (one browser volunteers to keep the list) ----------
+const DIR_ID='aritat-soi-dir-v2';
+const DIR={browse:null,conn:null,peer:null,isDir:false,becoming:false,rooms:new Map(),last:[]};
+function dirEnsure(){if(DIR.isDir||DIR.becoming)return;if(DIR.conn&&DIR.conn.open)return;
+ if(DIR.browse&&(DIR.browse.destroyed||DIR.browse._local!==NET.local)){try{DIR.browse.destroy();}catch(e){}DIR.browse=null;}
+ if(!DIR.browse){if(!onlineOK())return;const b=new (PeerImpl())(PEER_OPT);b._local=NET.local;DIR.browse=b;b.on('open',dirConnect);
+  b.on('error',e=>{if(e.type==='peer-unavailable'&&String(e.message||'').includes(DIR_ID))dirBecome();});b.on('disconnected',()=>{try{b.reconnect();}catch(e){}});}
+ else if(DIR.browse.open)dirConnect();}
+function dirConnect(){if(DIR.isDir||!DIR.browse||!DIR.browse.open)return;if(DIR.conn&&!DIR.conn._dead)return;
+ const c=DIR.browse.connect(DIR_ID,{reliable:true,serialization:'json'});DIR.conn=c;
+ c.on('open',()=>{dirSendReg();try{c.send({t:'list'});}catch(e){}});
+ c.on('data',m=>{if(m&&m.t==='rooms')renderRooms(m.rooms);});
+ c.on('close',()=>{c._dead=true;if(DIR.conn===c){DIR.conn=null;setTimeout(dirEnsure,400+Math.random()*1200);}});}
+function dirBecome(){if(DIR.isDir||DIR.becoming)return;DIR.becoming=true;if(DIR.conn){DIR.conn._dead=true;DIR.conn=null;}
+ const p=new (PeerImpl())(DIR_ID,PEER_OPT);
+ p.on('open',()=>{DIR.becoming=false;DIR.isDir=true;DIR.peer=p;DIR.rooms.clear();dirSendReg();renderRooms(dirList());});
+ p.on('connection',c=>{c.on('data',m=>dirHandle(c,m));c.on('close',()=>{for(const [k,r] of DIR.rooms)if(r.c===c)DIR.rooms.delete(k);});});
+ p.on('error',e=>{if(e.type==='unavailable-id'){DIR.becoming=false;try{p.destroy();}catch(_){}setTimeout(dirEnsure,300+Math.random()*900);}});
+ p.on('disconnected',()=>{try{p.reconnect();}catch(e){}});}
+function dirHandle(c,m){if(!m)return;if(m.t==='reg'&&m.r&&m.r.code){DIR.rooms.set(m.r.code,Object.assign({},m.r,{c,ts:Date.now()}));}
+ else if(m.t==='unreg')DIR.rooms.delete(m.code);else if(m.t==='list')try{c.send({t:'rooms',rooms:dirList()});}catch(e){}}
+function dirList(){const now=Date.now();for(const [k,r] of DIR.rooms)if(now-r.ts>12000)DIR.rooms.delete(k);
+ return [...DIR.rooms.values()].map(r=>({code:r.code,title:r.title,host:r.host,n:r.n,max:r.max,st:r.st,w:r.w})).slice(0,40);}
+function dirSendReg(){if(NET.mode!=='host'||!NET.peer||!NET.peer.open)return;
+ if(!NET.pub){dirUnreg();return;}
+ const r={code:NET.code,title:NET.title,host:myName(),n:1+MATES.size,max:MAXP,st:NET.started?1:0,w:NET.started?wave:0};
+ if(DIR.isDir)DIR.rooms.set(r.code,Object.assign({},r,{c:null,ts:Date.now()}));else if(DIR.conn&&DIR.conn.open)try{DIR.conn.send({t:'reg',r});}catch(e){}}
+function dirUnreg(){if(DIR.isDir)DIR.rooms.delete(NET.code);else if(DIR.conn&&DIR.conn.open)try{DIR.conn.send({t:'unreg',code:NET.code});}catch(e){}}
+function dirRefresh(){if(DIR.isDir)renderRooms(dirList());else if(DIR.conn&&DIR.conn.open)try{DIR.conn.send({t:'list'});}catch(e){}else dirEnsure();}
+function renderRooms(rooms){DIR.last=rooms||[];const box=$('#roomList');if(!box)return;
+ const list=DIR.last.filter(r=>r.code!==NET.code||NET.mode!=='host');
+ if(!list.length){box.innerHTML='<p class="hint">ยังไม่มีห้องเปิดอยู่ สร้างห้องเองแล้วชวนเพื่อนได้เลย</p>';return;}
+ box.innerHTML=list.map(r=>{const full=r.n>=r.max,busy=!!r.st;return `<div class="room"><b>${esc(r.title||'ห้อง')}</b><small>หัวห้อง ${esc(r.host||'-')} · ${r.n}/${r.max} คน · ${busy?'กำลังเล่น เวฟ '+(r.w||1):'รออยู่ในล็อบบี้'}</small><button class="b ${full||busy?'alt':''}" data-j="${esc(r.code)}" ${full||busy?'disabled':''}>${full?'เต็ม':busy?'เล่นอยู่':'เข้าห้อง'}</button></div>`;}).join('');
+ box.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{$('#joinCode').value=b.dataset.j;netJoin(b.dataset.j);});}
+setInterval(()=>{if(NET.mode==='host')dirSendReg();if(!$('#coop').hidden&&!$('#coopEntry').hidden)dirRefresh();},3000);
 function hitE(e,d,dir,knock,head,src,o={}){
  if(NET.mode!=='client'){damage(e,d,dir,knock,head,src,o);return;}
  if(e.dead)return;e.flash=0.06;const pt=o.point||new THREE.Vector3(e.g.position.x,e.g.position.y+0.7*e.s,e.g.position.z);
@@ -1005,32 +1109,33 @@ function hostEnemies(dt){
   if(!none&&e.stagger<=0&&d<reach&&e.atkCd<=0&&py<top&&py>e.y-1.3&&(!e.C.fly||Math.abs(e.y-(py+0.9))<1.5)){
    e.atkCd=e.st==='charge'?1.5:1.1;e.lunge=1;const dv=e.st==='charge'?e.dmg*1.4:e.dmg;const ch=e.st==='charge';
    if(tg.local){hurt(dv,false,gp.x,gp.z);if(ch){P.pushV=(P.pushV||new THREE.Vector3()).set(e.ldx*16,0,e.ldz*16);P.vy=5;}}
-   else NET.send({t:'hurt',d:dv,fx:gp.x,fz:gp.z});
+   else NET.sendTo(tg.pid,{t:'hurt',d:dv,fx:gp.x,fz:gp.z});
    if(ch){e.st='run';e.t=3;}if(Math.random()<0.4)demonMeow(e.type==='kitten'?1.4:0.9,true);}
  }}
-// ---- partner avatar ----
-let avatar=null;
-function makeAvatar(name){const g=new THREE.Group();const shirt=std(0x2f9a8a,{roughness:0.8}),pants=std(0x24305a),hair=std(0x140808),sk=std(0xd99a6a,{roughness:0.7});
+// ---- remote player avatars ----
+function makeAvatar(name,pid){const g=new THREE.Group();const col=new THREE.Color(pColor(pid));const shirt=new THREE.MeshStandardMaterial({color:col.clone().multiplyScalar(0.7),roughness:0.8}),pants=std(0x24305a),hair=std(0x140808),sk=std(0xd99a6a,{roughness:0.7});
  const legs=[];for(const sx of [-0.13,0.13]){const p=new THREE.Group();p.position.set(sx,0.85,0);g.add(p);part(GEO.box,pants,0.2,0.85,0.22,0,-0.42,0,p);legs.push(p);}
  part(GEO.box,shirt,0.56,0.72,0.32,0,1.22,0,g);
  const head=new THREE.Group();head.position.set(0,1.78,0);g.add(head);part(GEO.box,sk,0.36,0.38,0.36,0,0,0,head);part(GEO.box,hair,0.4,0.14,0.4,0,0.2,0.02,head);
  for(let i=-1;i<=1;i++)part(GEO.cone4,hair,0.07,0.16,0.07,i*0.12,0.33,0,head);part(GEO.box,bas(0x111111),0.06,0.06,0.02,-0.08,0.02,-0.185,head);part(GEO.box,bas(0x111111),0.06,0.06,0.02,0.08,0.02,-0.185,head);
  const arm=new THREE.Group();arm.position.set(0.3,1.45,0);g.add(arm);part(GEO.box,shirt,0.16,0.16,0.5,0,0,-0.2,arm);part(GEO.box,std(0x15161a,{metalness:0.8,roughness:0.3}),0.1,0.12,0.7,0,0.06,-0.6,arm);
- const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0x58c8ff,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0.35}));glow.scale.setScalar(2.6);glow.position.y=1;g.add(glow);
- const c=document.createElement('canvas');c.width=256;c.height=72;const ctx=c.getContext('2d');const tex=new THREE.CanvasTexture(c);
+ g.traverse(o=>{if(o.isMesh)o.castShadow=true;});
+ const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:col,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0.3}));glow.scale.setScalar(2.6);glow.position.y=1;g.add(glow);
+ const c=document.createElement('canvas');c.width=256;c.height=72;const ctx=c.getContext('2d');const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
  const lbl=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));lbl.scale.set(2.2,0.62,1);lbl.position.y=2.55;lbl.renderOrder=20;g.add(lbl);
- scene.add(g);return {g,legs,head,arm,ctx,tex,name,lastKey:'',phase:0};}
-function ensureAvatar(){if(!avatar)avatar=makeAvatar(NET.mateName);R.x=R.z=0;}
-function removeAvatar(){if(avatar){scene.remove(avatar.g);avatar=null;}for(const g of fbVis)g.visible=false;}
-function updateAvatar(dt){if(!avatar||!R.on)return;const g=avatar.g;const k=Math.min(1,dt*14);const ox=R.x,oz=R.z;R.x+=(R.tx-R.x)*k;R.y+=(R.ty-R.y)*k;R.z+=(R.tz-R.z)*k;
- g.position.set(R.x,R.y,R.z);g.rotation.y=R.yaw;avatar.head.rotation.x=R.pitch*0.6;avatar.arm.rotation.x=R.pitch;
- const sp=Math.hypot(R.x-ox,R.z-oz)/Math.max(dt,1e-4);avatar.phase+=dt*sp*1.8;avatar.legs.forEach((l,i)=>l.rotation.x=Math.sin(avatar.phase+(i?Math.PI:0))*0.6);
- g.rotation.x=R.down?-Math.PI/2*0.9:0;if(R.down)g.position.y=R.y+0.25;
- const key=R.hp+'|'+R.down+'|'+Math.round(R.rev*10);if(key!==avatar.lastKey){avatar.lastKey=key;const c=avatar.ctx;c.clearRect(0,0,256,72);c.font='bold 30px Itim, sans-serif';c.textAlign='center';c.lineWidth=6;c.strokeStyle='#000';c.strokeText(NET.mateName,128,30);c.fillStyle=R.down?'#ff5a5a':'#bfe9ff';c.fillText(NET.mateName,128,30);
-  c.fillStyle='rgba(0,0,0,.7)';c.fillRect(28,44,200,14);c.fillStyle=R.down?'#ff3a3a':'#58c8ff';c.fillRect(30,46,196*clamp(R.hp/(R.mh||100),0,1),10);avatar.tex.needsUpdate=true;}}
-function remoteShot(m){if(!avatar)return;const a=new THREE.Vector3(m.a[0],m.a[1],m.a[2]);for(const e of m.e){const b=new THREE.Vector3(e[0],e[1],e[2]);tracer(a,b,m.g==='sr'?0xcff4ff:0xffd090,m.g==='sr'?0.045:0.025,m.g==='sr'?0.2:0.06);}
+ scene.add(g);return {g,legs,head,arm,ctx,tex,lastKey:'',phase:0};}
+function removeAvatar(m){if(m&&m.av){scene.remove(m.av.g);m.av=null;}}
+function removeAvatars(){for(const m of MATES.values())removeAvatar(m);for(const g of fbVis)g.visible=false;}
+function updateAvatar(dt){if(!NET.mode)return;for(const m of MATES.values()){if(!m.on)continue;if(!m.av)m.av=makeAvatar(m.name,m.pid);const av=m.av,g=av.g;
+ const k=Math.min(1,dt*14);const ox=m.x,oz=m.z;m.x+=(m.tx-m.x)*k;m.y+=(m.ty-m.y)*k;m.z+=(m.tz-m.z)*k;
+ g.position.set(m.x,m.y,m.z);g.rotation.y=m.yaw;av.head.rotation.x=m.pitch*0.6;av.arm.rotation.x=m.pitch;
+ const sp=Math.hypot(m.x-ox,m.z-oz)/Math.max(dt,1e-4);av.phase+=dt*sp*1.8;av.legs.forEach((l,i)=>l.rotation.x=Math.sin(av.phase+(i?Math.PI:0))*0.6);
+ g.rotation.x=m.down?-Math.PI/2*0.9:0;if(m.down)g.position.y=m.y+0.25;
+ const key=m.name+'|'+m.hp+'|'+m.down+'|'+Math.round(m.rev*10);if(key!==av.lastKey){av.lastKey=key;const c=av.ctx;c.clearRect(0,0,256,72);c.font='bold 30px Itim, sans-serif';c.textAlign='center';c.lineWidth=6;c.strokeStyle='#000';c.strokeText(m.name,128,30);c.fillStyle=m.down?'#ff5a5a':pColor(m.pid);c.fillText(m.name,128,30);
+  c.fillStyle='rgba(0,0,0,.7)';c.fillRect(28,44,200,14);c.fillStyle=m.down?'#ff3a3a':pColor(m.pid);c.fillRect(30,46,196*clamp(m.hp/(m.mh||100),0,1),10);av.tex.needsUpdate=true;}}}
+function remoteShot(m){const a=new THREE.Vector3(m.a[0],m.a[1],m.a[2]);for(const e of m.e){const b=new THREE.Vector3(e[0],e[1],e[2]);tracer(a,b,m.g==='sr'?0xcff4ff:0xffd090,m.g==='sr'?0.045:0.025,m.g==='sr'?0.2:0.06);}
  fx(a.x,a.y,a.z,{color:0xffc070,s0:0.6,s1:0.1,life:0.07});
- if(AC&&!muted&&a.distanceTo(P.pos)<60){if(m.g==='ssg')S.ssg();else if(m.g==='sr')S.sniper();else S.cg();}}
+ if(AC&&!muted&&P&&a.distanceTo(P.pos)<60){if(m.g==='ssg')S.ssg();else if(m.g==='sr')S.sniper();else S.cg();}}
 // ---- radar & co-op HUD ----
 const rctx=$('#radar').getContext('2d');let radarT=0;
 function drawRadar(){radarT+=1;if(radarT%2)return;const c=rctx,W=150,H=150,cx=75,cy=75,Rr=72,sc=Rr/45;c.clearRect(0,0,W,H);
@@ -1040,23 +1145,37 @@ function drawRadar(){radarT+=1;if(radarT%2)return;const c=rctx,W=150,H=150,cx=75
  c.save();c.beginPath();c.arc(cx,cy,Rr-1,0,TAU);c.clip();
  for(const o of obstacles){if(o.h<4)continue;const [x,y]=toR(o.x,o.z);c.fillStyle='rgba(120,90,80,.35)';c.save();c.translate(x,y);c.rotate(-P.yaw);c.fillRect(-o.hw*sc,-o.hd*sc,o.hw*2*sc,o.hd*2*sc);c.restore();}
  for(const e of enemies){if(e.dead)continue;const [x,y,dd]=toR(e.g.position.x,e.g.position.z);if(dd>48)continue;c.fillStyle=e.type==='boss'?'#ff7a1a':e.C.fly?'#ff5ad0':e.stagger>0?'#ffd166':'#ff2a2a';c.beginPath();c.arc(x,y,e.type==='boss'?5:e.C.fly?2.5:3,0,TAU);c.fill();}
- if(R.on&&NET.mode){const [x,y]=toR(R.x,R.z);c.fillStyle=R.down?'#ff5a5a':'#58c8ff';c.beginPath();c.arc(x,y,4.5,0,TAU);c.fill();c.strokeStyle='#fff';c.lineWidth=1.5;c.stroke();}
- c.restore();c.fillStyle='#f1e3cf';c.beginPath();c.moveTo(cx,cy-7);c.lineTo(cx-5,cy+5);c.lineTo(cx+5,cy+5);c.closePath();c.fill();}
-function coopHud(){const on=!!NET.mode&&R.on;$('#mate').hidden=!on;$('#downMsg').hidden=!P.down;
- if(on){setT('#mateName',esc(NET.mateName));$('#mateHp').style.width=clamp(R.hp/(R.mh||100),0,1)*100+'%';$('#mateHp').style.background=R.down?'#ff3a3a':'#58c8ff';setT('#mateSt',R.down?'ล้ม! ไปยืนข้างๆ เพื่อช่วย':'');}
- const near=on&&R.down&&!P.down&&Math.hypot(R.x-P.pos.x,R.z-P.pos.z)<2.8;$('#revive').hidden=!near;if(near)setT('#revive','กำลังช่วย '+esc(NET.mateName)+' '+Math.round(clamp(R.rev/3,0,1)*100)+'%');
+ c.restore();
+ if(NET.mode)for(const m of MATES.values()){if(!m.on)continue;let [x,y,dd]=toR(m.x,m.z);if(dd*sc>Rr-5){const a=Math.atan2(y-cy,x-cx);x=cx+Math.cos(a)*(Rr-5);y=cy+Math.sin(a)*(Rr-5);}c.fillStyle=m.down?'#ff3a3a':pColor(m.pid);c.beginPath();c.arc(x,y,4.5,0,TAU);c.fill();c.strokeStyle='#fff';c.lineWidth=1.5;c.stroke();}
+ c.fillStyle='#f1e3cf';c.beginPath();c.moveTo(cx,cy-7);c.lineTo(cx-5,cy+5);c.lineTo(cx+5,cy+5);c.closePath();c.fill();}
+let matesKey='';
+function coopHud(){const list=NET.mode?[...MATES.values()].filter(m=>m.on):[];$('#mates').hidden=!list.length;$('#downMsg').hidden=!P.down;
+ if(list.length){const key=list.map(m=>m.pid+m.name+Math.round(m.hp)+m.mh+m.down).join('|');if(key!==matesKey){matesKey=key;
+  $('#mates').innerHTML=list.map(m=>`<div class="m"><span style="color:${pColor(m.pid)}">${esc(m.name)}</span><div class="bar"><i style="width:${clamp(m.hp/(m.mh||100),0,1)*100}%;background:${m.down?'#ff3a3a':pColor(m.pid)}"></i></div>${m.down?'<span class="st">ล้ม! ไปยืนข้างๆ เพื่อช่วย</span>':''}</div>`).join('');}}
+ let near=null;if(!P.down)for(const m of list)if(m.down&&Math.hypot(m.x-P.pos.x,m.z-P.pos.z)<2.8){near=m;break;}
+ $('#revive').hidden=!near;if(near)setT('#revive','กำลังช่วย '+esc(near.name)+' '+Math.round(clamp(near.rev/3,0,1)*100)+'%');
  if(P.down&&P.revT>0)setT('#downMsg','ล้มแล้ว!<small>เพื่อนกำลังช่วย '+Math.round(P.revT/3*100)+'%</small>');else if(P.down)setT('#downMsg','ล้มแล้ว!<small>ให้เพื่อนมายืนข้างๆ 3 วินาทีเพื่อช่วยลุก</small>');}
 function dmgDir(x,z){const dx=x-P.pos.x,dz=z-P.pos.z;if(Math.hypot(dx,dz)<0.3)return;const cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);const lx=dx*cs-dz*sn,ly=-dx*sn-dz*cs;const ang=Math.atan2(lx,ly);
  const i=document.createElement('i');i.style.transform=`rotate(${ang}rad)`;$('#dmgdir').appendChild(i);setTimeout(()=>i.remove(),900);}
 // lobby
-$('#coopBtn').onclick=()=>{audio();startMusic();hideAll();$('#coop').hidden=false;$('#coopName').value=save.name||'';$('#roomBox').hidden=true;$('#coopStart').hidden=true;netStatus(onlineOK()?'':'เบราว์เซอร์นี้ไม่รองรับการเล่นออนไลน์ ลองใช้ Chrome หรือ Edge');};
-$('#hostBtn').onclick=()=>netHost(false);$('#joinBtn').onclick=()=>netJoin(false);
-$('#localTest').onclick=()=>{if($('#joinCode').value.trim().length>=4)netJoin(true);else netHost(true);};
-$('#coopStart').onclick=()=>{if(NET.mode!=='host'||!NET.connected)return;NET.send({t:'start'});startGame();};
-$('#coopBack').onclick=()=>{netClose();showMenu();};
+$('#coopBtn').onclick=openCoop;
+$('#hostBtn').onclick=()=>netHost();$('#joinBtn').onclick=()=>netJoin();
+$('#localTest').onclick=()=>{NET.local=!NET.local;$('#localTest').textContent=NET.local?'โหมดทดสอบ: เปิด (กดเพื่อกลับไปออนไลน์จริง)':'โหมดทดสอบหลายแท็บในเครื่องเดียว';
+ if(DIR.browse){try{DIR.browse.destroy();}catch(e){}DIR.browse=null;}if(DIR.peer){try{DIR.peer.destroy();}catch(e){}DIR.peer=null;}DIR.isDir=false;DIR.conn=null;DIR.becoming=false;
+ if(NET.mode)netClose();showEntry(NET.local?'โหมดทดสอบ: เปิดเกมนี้หลายแท็บ แล้วสร้างห้อง/เข้าห้องได้เหมือนออนไลน์':'');};
+$('#coopStart').onclick=()=>{if(NET.mode!=='host')return;if([...MATES.values()].some(m=>!m.ready))return;NET.started=true;dirSendReg();NET.send({t:'start'});startGame();};
+$('#readyBtn').onclick=()=>{if(NET.mode!=='client'||!NET.joined)return;NET.ready=!NET.ready;NET.send({t:'lrdy',v:NET.ready?1:0});renderRoom();S.pick(NET.ready?900:600);};
+$('#leaveBtn').onclick=()=>{if(NET.mode){NET.send({t:'bye'});netClose();}showEntry('ออกจากห้องแล้ว');};
+$('#coopBack').onclick=()=>{if(NET.mode){NET.send({t:'bye'});netClose();}showMenu();};
+$('#roomsRefresh').onclick=()=>{$('#roomList').innerHTML='<p class="hint">กำลังหาห้อง…</p>';dirRefresh();};
+$('#chatForm').addEventListener('submit',e=>{e.preventDefault();sendChat($('#chatIn').value);$('#chatIn').value='';});
+$('#chatBar').addEventListener('submit',e=>{e.preventDefault();sendChat($('#chatBarIn').value);$('#chatBarIn').value='';$('#chatBar').hidden=true;lock();});
+$('#chatBarIn').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){$('#chatBar').hidden=true;}});
+['#chatIn','#roomTitle','#coopName'].forEach(id=>$(id).addEventListener('keydown',e=>e.stopPropagation()));
 $('#copyLink').onclick=()=>{const t=inviteLink(NET.code);const ok=()=>netStatus('คัดลอกลิงก์แล้ว ส่งให้เพื่อนทางแชตได้เลย เพื่อนกดลิงก์แล้วกด "เข้าร่วม"');if(navigator.clipboard)navigator.clipboard.writeText(t).then(ok,()=>prompt('คัดลอกลิงก์นี้',t));else prompt('คัดลอกลิงก์นี้',t);};
 $('#copyCode').onclick=()=>{const t=NET.code;if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>netStatus('คัดลอกรหัส '+t+' แล้ว'),()=>{});};
-$('#joinCode').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')netJoin(false);});$('#coopName').addEventListener('keydown',e=>e.stopPropagation());
+$('#joinCode').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')netJoin();});
+addEventListener('pagehide',()=>{if(NET.mode)NET.send({t:'bye'});});
 
 /* ======================= LOOP ======================= */
 let menuT=0;const menuCats=[];
@@ -1074,5 +1193,6 @@ function frame(now){const dt=Math.min(0.05,(now-lastTime)/1000);lastTime=now;
  if(window.__noRender){}else if(window.__noPost)renderer.render(scene,camera);else post.render(dt);
  requestAnimationFrame(frame);}
 setMusic(save.music);applyQuality();W.bakeEnv();showMenu();$('#loading').hidden=true;requestAnimationFrame(frame);
-if(/[?&]dbg/.test(location.search))window.__dbg={get P(){return P},get enemies(){return enemies},spawnEnemy,camera,scene,renderer,startGame,get state(){return state},set state(v){state=v},get wave(){return wave},set queue(v){queue=v},set firing(v){firing=v},get kills(){return kills},get queue(){return queue},get spawnT(){return spawnT},get timeScale(){return timeScale},hitE,W,get post(){return post},tick(n,dt=1/60){for(let i=0;i<n;i++){if(window.__forcePlay&&state!=='play'){hideAll();state='play';}ambient(dt,performance.now());if(state==='play')update(dt);}if(P)updateHud();return [state,wave,enemies.filter(e=>!e.dead).length,queue.length];},snap(){if(window.__noPost)renderer.render(scene,camera);else post.render(0.016);return renderer.domElement.toDataURL('image/jpeg',0.85);}};
-(()=>{const m=/[#&]r=([A-Z0-9]{4,6})/i.exec(location.hash);if(!m)return;hideAll();$('#coop').hidden=false;$('#coopName').value=save.name||'';$('#roomBox').hidden=true;$('#coopStart').hidden=true;$('#joinCode').value=m[1].toUpperCase();netStatus('เพื่อนชวนเข้าห้อง '+m[1].toUpperCase()+' ใส่ชื่อแล้วกด "เข้าร่วม" ได้เลย');try{history.replaceState(null,'',location.pathname);}catch(e){}})();
+if(/[?&]dbg/.test(location.search))window.__dbg={get P(){return P},get enemies(){return enemies},spawnEnemy,camera,scene,renderer,startGame,get state(){return state},set state(v){state=v},get wave(){return wave},set queue(v){queue=v},set firing(v){firing=v},get kills(){return kills},get queue(){return queue},get spawnT(){return spawnT},get timeScale(){return timeScale},hitE,W,get post(){return post},get NET(){return NET},get DIR(){return DIR},get MATES(){return MATES},tick(n,dt=1/60){for(let i=0;i<n;i++){if(window.__forcePlay&&state!=='play'){hideAll();state='play';}ambient(dt,performance.now());if(state==='play')update(dt);}if(P)updateHud();return [state,wave,enemies.filter(e=>!e.dead).length,queue.length];},snap(){if(window.__noPost)renderer.render(scene,camera);else post.render(0.016);return renderer.domElement.toDataURL('image/jpeg',0.85);}};
+if(/[?&]mock/.test(location.search))NET.local=true;
+(()=>{const m=/[#&]r=([A-Z0-9]{4,6})/i.exec(location.hash);if(!m)return;openCoop();$('#joinCode').value=m[1].toUpperCase();netStatus('เพื่อนชวนเข้าห้อง '+m[1].toUpperCase()+' ใส่ชื่อแล้วกด "เข้าร่วม" ได้เลย');try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}})();
