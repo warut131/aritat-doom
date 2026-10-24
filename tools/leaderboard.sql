@@ -7,9 +7,10 @@ create table if not exists public.scores (
   kills int not null check (kills between 0 and 50000),
   char text not null default 'aritat' check (char_length(char) <= 16),
   mode text not null default 'solo' check (mode in ('solo','coop')),
-  acc int check (acc between 0 and 100)
+  acc int check (acc between 0 and 100),
+  level int not null default 1 check (level between 1 and 9)
 );
-create index if not exists scores_rank on public.scores (wave desc, kills desc);
+create index if not exists scores_rank on public.scores (level, wave desc, kills desc);
 alter table public.scores enable row level security;
 drop policy if exists "anyone can read" on public.scores;
 drop policy if exists "anyone can add" on public.scores;

@@ -261,6 +261,124 @@ export function buildGuns() {
     } };
     guns.push(g);
   }
+  // ======================= 7. UZI =======================
+  {
+    const g = new THREE.Group();
+    add(g, G.rbox, M.dark, [0.055, 0.075, 0.26], [0, 0.0, -0.03]);                          // receiver
+    add(g, G.box, M.blued, [0.057, 0.01, 0.2], [0, 0.04, -0.04]);
+    for (let i = 0; i < 6; i++) add(g, G.box, M.rubber, [0.058, 0.03, 0.006], [0, 0.0, -0.13 + i * 0.012]);
+    tubeZ(g, M.blued, 0.011, 0.08, -0.2, 0, 0.0); tubeZ(g, M.dark, 0.016, 0.02, -0.165, 0, 0.0);
+    add(g, G.box, M.dark, [0.012, 0.025, 0.012], [0, 0.05, -0.15]); add(g, G.box, M.dark, [0.025, 0.02, 0.012], [0, 0.048, 0.07]);
+    const knob = add(g, G.sph, M.steel, [0.012, 0.012, 0.012], [0, 0.048, 0.0]);
+    const mag = new THREE.Group(); mag.position.set(0, -0.04, 0.03); g.add(mag);
+    add(g, G.rbox, M.rubber, [0.045, 0.13, 0.05], [0, -0.09, 0.03], [0.1, 0, 0]);
+    add(mag, G.box, M.blued, [0.03, 0.14, 0.035], [0, -0.13, 0.0], [0.1, 0, 0]);
+    add(g, G.tor, M.dark, [0.025, 0.025, 0.025], [0, -0.05, -0.02], [0, Math.PI / 2, 0]);
+    for (const x of [-0.03, 0.03]) add(g, G.box, M.steel, [0.006, 0.006, 0.22], [x, 0.0, 0.2]);   // wire stock
+    add(g, G.box, M.steel, [0.066, 0.05, 0.008], [0, -0.01, 0.31]);
+    hand(g, [0.0, -0.11, 0.06], [0.45, 0, -0.1], 1); const hl = hand(g, [-0.03, -0.08, -0.08], [0.2, 0.3, 0.5], 0.8); watch(hl);
+    const mz = new THREE.Object3D(); mz.position.set(0, 0.0, -0.25); g.add(mz);
+    const ej = new THREE.Object3D(); ej.position.set(0.03, 0.03, -0.03); g.add(ej);
+    g.scale.setScalar(1.15); g.position.set(-0.03, 0.05, 0);
+    g.userData = { mz, ej, anim(st) { knob.position.z = recoilBack(st.shotT, 0.04, 0.04) + (st.reloadK > 0.78 && st.reloadK < 0.95 ? Math.sin((st.reloadK - 0.78) / 0.17 * Math.PI) * 0.06 : 0);
+      mag.position.y = -0.04 - magDrop(st.reloadK) * 0.3; mag.visible = !(st.reloadK > 0.28 && st.reloadK < 0.5); } };
+    guns.push(g);
+  }
+  // ======================= 8. M4 AUTO SHOTGUN =======================
+  {
+    const g = new THREE.Group();
+    add(g, G.rbox, M.dark, [0.055, 0.075, 0.24], [0, 0.0, 0.0]);
+    tubeZ(g, M.blued, 0.017, 0.48, -0.36, 0, 0.018); tubeZ(g, M.dark, 0.02, 0.4, -0.32, 0, -0.024);     // barrel + mag tube
+    add(g, G.box, M.dark, [0.012, 0.014, 0.012], [0, 0.04, -0.58]);
+    add(g, G.rbox, M.rubber, [0.06, 0.05, 0.2], [0, -0.03, -0.24]);                                      // forend
+    add(g, G.box, M.blued, [0.02, 0.012, 0.2], [0, 0.045, 0.0]);
+    for (const x of [-0.012, 0.012]) add(g, G.box, M.dark, [0.005, 0.025, 0.012], [x, 0.06, 0.08]);
+    const bolt = add(g, G.box, M.steel, [0.02, 0.015, 0.03], [0.03, 0.01, -0.02]);
+    const shell = new THREE.Group(); g.add(shell); tubeZ(shell, M.red, 0.016, 0.06, 0); tubeZ(shell, M.brass, 0.017, 0.012, 0.035); shell.position.set(0, -0.05, 0.02); shell.visible = false;
+    const grip = new THREE.Mesh(extrude([[0, 0], [0.05, 0], [0.08, -0.12], [0.04, -0.13], [0.01, -0.03]], 0.04, 0.008), M.rubber); grip.position.set(0, -0.035, 0.1); g.add(grip);
+    add(g, G.rbox, M.rubber, [0.05, 0.08, 0.28], [0, -0.02, 0.32]); add(g, G.rbox, M.rubber, [0.06, 0.13, 0.03], [0, -0.04, 0.47]);
+    add(g, G.tor, M.dark, [0.026, 0.026, 0.026], [0, -0.045, 0.06], [0, Math.PI / 2, 0]);
+    hand(g, [0.0, -0.11, 0.14], [0.5, 0, -0.1], 1); const hl = hand(g, [-0.01, -0.07, -0.24], [0.25, 0, 0.12], 0.85); watch(hl);
+    const mz = new THREE.Object3D(); mz.position.set(0, 0.018, -0.6); g.add(mz);
+    const ej = new THREE.Object3D(); ej.position.set(0.035, 0.02, -0.02); g.add(ej);
+    g.userData = { mz, ej, anim(st) { const k = st.reloadK; bolt.position.z = -0.02 + recoilBack(st.shotT, 0.07, 0.05) + (k > 0.85 ? Math.sin((k - 0.85) / 0.15 * Math.PI) * 0.06 : 0);
+      const f = k >= 0 ? (k * 4) % 1 : -1; shell.visible = k >= 0 && k < 0.82 && f > 0.1 && f < 0.85; shell.position.z = 0.02 + Math.max(0, 0.6 - f) * 0.3; } };
+    guns.push(g);
+  }
+  // ======================= 9. M60 =======================
+  {
+    const g = new THREE.Group();
+    add(g, G.rbox, M.olive, [0.07, 0.085, 0.32], [0, 0.0, 0.0]);
+    const cover = new THREE.Group(); cover.position.set(0, 0.045, 0.1); g.add(cover); add(cover, G.rbox, M.olive, [0.072, 0.02, 0.18], [0, 0, -0.09]);
+    tubeZ(g, M.dark, 0.016, 0.62, -0.5, 0, 0.012);
+    const shroud = tubeZ(g, M.blued, 0.03, 0.26, -0.3, 0, 0.012); for (let i = 0; i < 6; i++) for (const x of [-0.031, 0.031]) add(g, G.cyl8, M.rubber, [0.008, 0.004, 0.008], [x, 0.012, -0.4 + i * 0.04], [0, 0, Math.PI / 2]);
+    tubeZ(g, M.dark, 0.022, 0.06, -0.8, 0, 0.012);
+    add(g, G.box, M.dark, [0.012, 0.03, 0.012], [0, 0.05, -0.78]);
+    add(g, G.tor, M.dark, [0.04, 0.04, 0.04], [0, 0.09, -0.12], [0, 0, 0]);                              // carry handle
+    for (const x of [-0.02, 0.02]) add(g, G.cyl8, M.dark, [0.007, 0.36, 0.007], [x, -0.03, -0.62], [Math.PI / 2, 0, 0]); // bipod folded
+    const box = new THREE.Group(); box.position.set(-0.075, -0.06, -0.02); g.add(box); add(box, G.rbox, M.olive, [0.08, 0.13, 0.17], [0, 0, 0]);
+    const belt = []; for (let i = 0; i < 10; i++) { const b = new THREE.Group(); b.position.set(0.045 + i * 0.002, 0.05 + i * 0.006, 0.0 - i * 0.0); add(b, G.cyl, M.brass, [0.006, 0.05, 0.006], [0, 0, 0], [0, 0, Math.PI / 2]); add(b, G.cone, M.brass, [0.006, 0.014, 0.006], [-0.03, 0, 0], [0, 0, Math.PI / 2]); b.position.set(0.04 + i * 0.0, 0.04 + i * 0.006, -0.06 + i * 0.012); box.add(b); belt.push(b); }
+    const grip = new THREE.Mesh(extrude([[0, 0], [0.05, 0], [0.08, -0.12], [0.04, -0.13], [0.01, -0.03]], 0.04, 0.008), M.rubber); grip.position.set(0, -0.04, 0.12); g.add(grip);
+    add(g, G.rbox, M.rubber, [0.055, 0.09, 0.3], [0, -0.03, 0.32]); add(g, G.rbox, M.rubber, [0.065, 0.15, 0.03], [0, -0.04, 0.48]);
+    hand(g, [0.0, -0.12, 0.16], [0.5, 0, -0.1], 1); const hl = hand(g, [-0.02, -0.07, -0.3], [0.25, 0, 0.15], 0.85); watch(hl);
+    const mz = new THREE.Object3D(); mz.position.set(0, 0.012, -0.84); g.add(mz);
+    const ej = new THREE.Object3D(); ej.position.set(0.04, 0.0, 0.0); g.add(ej);
+    g.scale.setScalar(0.92); g.position.set(0, -0.01, 0.05);
+    g.userData = { mz, ej, anim(st) { const k = st.reloadK; cover.rotation.x = k > 0.2 && k < 0.8 ? -Math.min(1, (k - 0.2) * 6, (0.8 - k) * 6) * 1.1 : 0;
+      box.visible = !(k > 0.3 && k < 0.55); box.position.y = -0.06 - (k > 0.15 && k < 0.6 ? Math.sin((k - 0.15) / 0.45 * Math.PI) * 0.15 : 0);
+      belt.forEach((b, i) => b.visible = k >= 0 ? k > 0.6 : i < Math.ceil((st.mag || 0) / 10)); } };
+    guns.push(g);
+  }
+  // ======================= 10. RPG-7 =======================
+  {
+    const g = new THREE.Group();
+    tubeZ(g, M.olive, 0.035, 0.95, -0.12, 0, 0.03);
+    tubeZ(g, M.wood, 0.045, 0.24, -0.05, 0, 0.03);                                                        // wooden heat guard
+    const flare = new THREE.Mesh(lathe([[0.035, 0], [0.06, 0.12], [0.065, 0.14], [0.04, 0.02]], 22), M.olive); flare.rotation.x = Math.PI / 2; flare.position.set(0, 0.03, 0.33); g.add(flare);
+    const war = new THREE.Group(); war.position.set(0, 0.03, -0.62); g.add(war);
+    const wh = new THREE.Mesh(lathe([[0.0, 0.0], [0.03, 0.03], [0.07, 0.15], [0.075, 0.2], [0.06, 0.26], [0.025, 0.3], [0.02, 0.36]], 22), new THREE.MeshStandardMaterial({ color: 0x4a5a2a, roughness: 0.55, metalness: 0.3 }));
+    wh.rotation.x = -Math.PI / 2; wh.position.z = 0.0; war.add(wh); tubeZ(war, M.dark, 0.02, 0.12, 0.05);
+    add(g, G.box, M.dark, [0.03, 0.06, 0.06], [-0.04, 0.09, -0.1]); tubeZ(g, M.glass, 0.012, 0.08, -0.1, -0.04, 0.12);
+    const grip = new THREE.Mesh(extrude([[0, 0], [0.05, 0], [0.08, -0.12], [0.04, -0.13], [0.01, -0.03]], 0.04, 0.008), M.wood); grip.position.set(0, -0.005, 0.02); g.add(grip);
+    const grip2 = new THREE.Mesh(extrude([[0, 0], [0.04, 0], [0.06, -0.1], [0.03, -0.11]], 0.035, 0.008), M.wood); grip2.position.set(0, -0.005, -0.26); g.add(grip2);
+    hand(g, [0.0, -0.08, 0.06], [0.5, 0, -0.1], 1); const hl = hand(g, [0.0, -0.08, -0.22], [0.45, 0, 0.0], 0.95); watch(hl);
+    const mz = new THREE.Object3D(); mz.position.set(0, 0.03, -0.62); g.add(mz);
+    g.position.set(0.06, -0.03, -0.12); g.scale.setScalar(0.9);
+    g.userData = { mz, anim(st) { const k = st.reloadK; war.visible = k >= 0 ? k > 0.5 : (st.mag || 0) > 0; war.position.z = -0.62 - (k > 0.5 && k < 0.85 ? (0.85 - k) * 1.2 : 0); } };
+    guns.push(g);
+  }
+  // ======================= 11-13. MELEE: machete, katana, sledgehammer =======================
+  function bladeShape(len, w, curve) { const s = new THREE.Shape(); s.moveTo(0, -w * 0.4); s.quadraticCurveTo(len * 0.5, -w * 0.5 + curve, len, curve * 0.6 + w * 0.15); s.lineTo(len * 0.92, w * 0.5 + curve * 0.4); s.quadraticCurveTo(len * 0.5, w * 0.5 + curve * 0.7, 0, w * 0.4); s.closePath();
+    const geo = new THREE.ExtrudeGeometry(s, { depth: 0.006, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.003, bevelSegments: 1, curveSegments: 10 }); geo.translate(0, 0, -0.003); geo.rotateZ(Math.PI / 2); return geo; }
+  M.edge = new THREE.MeshStandardMaterial({ color: 0xd8dce4, metalness: 1, roughness: 0.18, envMapIntensity: 1.6 });
+  M.blood = new THREE.MeshStandardMaterial({ color: 0x5a0606, roughness: 0.25, metalness: 0.2 });
+  function meleeHold(g, twoHand) { hand(g, [0, -0.0, 0.0], [0.0, 0, 0.0], 1.15); if (twoHand) { const h2 = hand(g, [0.0, -0.11, 0.0], [0.0, 0, 0.0], 1.15); watch(h2); } }
+  {
+    const g = new THREE.Group(); const hold = new THREE.Group(); g.add(hold); hold.rotation.set(-0.55, 0, 0.5);
+    add(hold, G.cyl, M.wood, [0.017, 0.13, 0.02], [0, -0.02, -0.04]); add(hold, G.box, M.brass, [0.008, 0.008, 0.02], [0, 0.02, -0.04]);
+    const bl = new THREE.Mesh(bladeShape(0.36, 0.085, 0.03), M.edge); bl.rotation.y = Math.PI / 2; bl.position.set(0, 0.04, -0.04); hold.add(bl);
+    const bs = new THREE.Mesh(bladeShape(0.16, 0.06, 0.015), M.blood); bs.rotation.y = Math.PI / 2; bs.position.set(0.002, 0.25, -0.04); hold.add(bs);
+    meleeHold(hold, false); g.position.set(0.04, -0.06, 0.05);
+    const mz = new THREE.Object3D(); mz.position.set(0, 0.3, -0.04); hold.add(mz);
+    g.userData = { mz, melee: true, anim() {} }; guns.push(g);
+  }
+  {
+    const g = new THREE.Group(); const hold = new THREE.Group(); g.add(hold); hold.rotation.set(-0.3, 0, 0.25);
+    add(hold, G.cyl, M.rubber, [0.017, 0.24, 0.02], [0, -0.06, -0.04]); for (let i = 0; i < 7; i++) add(hold, G.box, M.white, [0.036, 0.008, 0.004], [0, -0.16 + i * 0.03, -0.02], [0, 0, i % 2 ? 0.5 : -0.5]);
+    add(hold, G.cyl, M.gold, [0.04, 0.008, 0.03], [0, 0.065, -0.04]);
+    const bl = new THREE.Mesh(bladeShape(0.78, 0.035, 0.035), M.edge); bl.rotation.y = Math.PI / 2; bl.position.set(0, 0.07, -0.04); hold.add(bl);
+    meleeHold(hold, true); g.position.set(0.03, -0.04, 0.05);
+    const mz = new THREE.Object3D(); mz.position.set(0, 0.8, -0.04); hold.add(mz);
+    g.userData = { mz, melee: true, anim() {} }; guns.push(g);
+  }
+  {
+    const g = new THREE.Group(); const hold = new THREE.Group(); g.add(hold); hold.rotation.set(-0.2, 0, 0.3);
+    add(hold, G.cyl, M.wood, [0.02, 0.62, 0.022], [0, 0.17, -0.04]);
+    add(hold, G.rbox, M.steel, [0.09, 0.09, 0.2], [0, 0.5, -0.04]); add(hold, G.box, M.dark, [0.092, 0.02, 0.202], [0, 0.47, -0.04]);
+    meleeHold(hold, true); g.position.set(0.03, -0.08, 0.05);
+    const mz = new THREE.Object3D(); mz.position.set(0, 0.5, -0.04); hold.add(mz);
+    g.userData = { mz, melee: true, anim() {} }; guns.push(g);
+  }
   // ======================= FIST (melee / glory kill) =======================
   const fist = new THREE.Group();
   { const h = hand(fist, [0, 0, 0], [0, 0, 0], 1.6); h.scale.setScalar(1.25);

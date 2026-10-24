@@ -300,6 +300,78 @@ body.touch #magNum{font-size:40px}
 .lbt tr.me td{background:rgba(255,154,58,.12);color:#ffd9a8}
 #lbBody{max-height:56vh;overflow:auto}
 .b.tab.on{background:var(--blood);color:#fff}
+.menu-panel{max-width:960px}
+.msum{font:700 14px var(--font-th);color:#ffd9a8;background:rgba(255,122,26,.08);border:1px solid #4a2c26;border-radius:6px;padding:8px 12px;max-width:none}
+.mtabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:2px solid #3a2420;padding-bottom:6px}
+.mtab{font:700 15px var(--font-th);background:#1c1210;color:var(--ash);border:1px solid #3a2420;border-radius:6px 6px 0 0;padding:8px 14px;cursor:pointer}
+.mtab.on{background:var(--blood);color:#fff;border-color:#ff5a4a}
+.mpane{display:grid;gap:10px;min-height:120px;max-height:52vh;overflow:auto;padding-right:4px}
+.lvs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.lv{position:relative;border:2px solid #3a2420;border-radius:10px;padding:16px;min-height:120px;display:grid;gap:6px;align-content:end;cursor:pointer;background-size:cover;overflow:hidden;text-align:left;color:var(--bone);font-family:var(--font-ui)}
+.lv::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 20%,rgba(0,0,0,.75))}
+.lv>*{position:relative}
+.lv b{font:400 30px var(--font-logo);color:#fff;text-shadow:0 2px 0 #000}
+.lv small{font:700 13px var(--font-th);color:#ffd9a8}
+.lv.l1{background:radial-gradient(ellipse at 70% 20%,#ff5a1a55,transparent 60%),linear-gradient(180deg,#3a1010,#120606)}
+.lv.l2{background:radial-gradient(circle at 75% 25%,#000 6%,#ffb04a 7%,#ff7a1a33 14%,transparent 40%),linear-gradient(180deg,#4a2060,#a0502a 70%,#2a1418)}
+.lv.sel{border-color:#ffd166;box-shadow:0 0 22px rgba(255,209,102,.35)}
+.lv.lock{filter:grayscale(.8) brightness(.6);cursor:not-allowed}
+.lv .tag{position:absolute;top:10px;right:12px;font:700 12px var(--font-th);color:#ffd166}
+.perks{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:8px}
+.pk{display:grid;gap:5px;background:#140c0b;border:2px solid #3a2420;border-radius:8px;padding:10px;align-content:start}
+.pk.sel{border-color:var(--pc);box-shadow:0 0 16px color-mix(in srgb,var(--pc) 35%,transparent)}
+.pk-h{display:flex;align-items:center;gap:8px}
+.pk-h .ic{font-size:26px}
+.pk-h b{font:700 17px var(--font-th);color:var(--pc)}
+.pk-h small{color:var(--ash);font-size:12px}
+.pk-h .lvn{margin-left:auto;font:400 22px var(--font-num);color:#fff}
+.xpb{height:6px;background:#2a1a17;border-radius:3px;overflow:hidden}.xpb i{display:block;height:100%;background:var(--pc)}
+.pk p{margin:0;font-size:12px;line-height:1.4;color:var(--bone)}
+.pk ul{margin:0;padding:0;list-style:none;display:grid;gap:2px;font-size:12px}
+.pk li{color:#6a5a52}.pk li.on{color:#e8dccf}.pk li b{color:inherit}.pk li.on b{color:var(--pc)}
+.pk button{justify-self:start;padding:6px 12px;font-size:13px}
+.loslots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.los{background:#120a09;border:2px dashed #4a2e28;border-radius:8px;padding:8px;min-height:54px;display:grid;align-content:center;justify-items:center;font:700 13px var(--font-th);color:var(--ash);text-align:center}
+.los.full{border-style:solid;border-color:#ff7a1a;color:#fff}
+.los .n{font:400 16px var(--font-num);color:#ffb35c}
+.gunlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.gn{display:grid;gap:3px;background:#140c0b;border:2px solid #3a2420;border-radius:8px;padding:9px;text-align:left;color:var(--bone);font-family:var(--font-ui);cursor:pointer;position:relative}
+.gn.in{border-color:#ff7a1a;background:#2a1408}
+.gn.lock{opacity:.85}
+.gn b{font:700 15px var(--font-th)}
+.gn small{font-size:12px;color:var(--ash);line-height:1.35}
+.gn .pt{justify-self:start;font:700 11px var(--font-th);padding:1px 6px;border-radius:999px;border:1px solid var(--pc);color:var(--pc)}
+.gn .st{font:700 12px var(--font-th);color:#ffd166}
+#slots div.perk{border-color:#9be15d}
+.chip.pk{font-weight:700}
+@media (max-width:640px){.loslots{grid-template-columns:repeat(2,minmax(0,1fr))}.mpane{max-height:none}}
+#coop.room3d{background:linear-gradient(180deg,rgba(6,2,2,.6),transparent 20%,transparent 60%,rgba(6,2,2,.9));place-items:stretch;padding:0}
+#coop.room3d .panel.lobby{background:none;border:0;box-shadow:none;max-width:none;width:100%;height:100%;padding:14px 20px calc(14px + env(safe-area-inset-bottom,0px));grid-template-rows:1fr auto auto auto;gap:6px}
+#coop.room3d #coopRoom{display:grid;grid-template-columns:minmax(0,1fr) 320px;grid-template-rows:auto 1fr auto;gap:10px;min-height:0}
+.rtop{grid-column:1;grid-row:1;display:grid;gap:8px;justify-items:start}
+#coop.room3d #roomBox{background:rgba(18,10,9,.75);padding:8px 12px}
+#coop.room3d #roomCode{font-size:30px}
+.rside{grid-column:2;grid-row:1/3;display:grid;gap:10px;align-content:start;min-height:0}
+#coop.room3d .lbox{background:rgba(18,10,9,.82);backdrop-filter:blur(3px)}
+#coop.room3d #chatLog{height:150px}
+.rbottom{grid-column:1/3;grid-row:3;display:grid;gap:10px;justify-items:center}
+.rpick{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
+.rpick .grp{display:flex;gap:4px;align-items:center;background:rgba(18,10,9,.82);border:1px solid #4a2e28;border-radius:999px;padding:4px 8px}
+.rpick .grp>span{font:700 12px var(--font-th);color:var(--ash);margin-right:4px}
+.rpick button{font-size:20px;line-height:1;background:#1c1210;border:2px solid #3a2420;border-radius:999px;width:38px;height:38px;cursor:pointer;padding:0}
+.rpick button.on{border-color:#ffd166;box-shadow:0 0 10px rgba(255,209,102,.5)}
+.rpick button.lvb{width:auto;padding:0 12px;font:700 13px var(--font-th);color:var(--bone)}
+.rpick button:disabled{opacity:.35;cursor:not-allowed}
+#coop.room3d #coopStatus,#coop.room3d .hint{text-align:center;justify-self:center}
+#coop.room3d .panel>.btns{justify-content:center}
+#lobbyTags{position:fixed;inset:0;pointer-events:none}
+#lobbyTags .ltag{position:absolute;transform:translate(-50%,-100%);display:grid;justify-items:center;gap:2px;text-align:center;white-space:nowrap;text-shadow:0 2px 4px #000}
+.ltag b{font:700 17px var(--font-th);color:var(--pc)}
+.ltag small{font:700 12px var(--font-th);color:#e8dccf;background:rgba(10,4,4,.65);border-radius:999px;padding:1px 8px}
+.ltag .rd{font:700 13px var(--font-th);padding:2px 10px;border-radius:999px;background:rgba(40,10,6,.8);color:var(--ash);border:1px solid #4a2e28}
+.ltag .rd.ok{color:#9be15d;border-color:#9be15d}
+.ltag .rd.host{color:#ffd166;border-color:#ffd166}
+@media (max-width:760px){#coop.room3d #coopRoom{grid-template-columns:1fr}.rside{grid-column:1;grid-row:3}.rbottom{grid-row:4}#coop.room3d #chatLog{height:90px}.rside .lbox:first-child{display:none}#coop.room3d .panel.lobby{overflow:auto}}
 </style>
 </head>
 <body>
@@ -351,38 +423,48 @@ body.touch #magNum{font-size:40px}
 </div>
 
 <div id="menu" class="overlay">
-  <div class="panel">
-    <h1>Aritat ซอยนรก<small>ประตูนรกเปิดกลางซอย ๗ แมวทุกตัวโดนสิง เหลือ Aritat คนเดียวที่ยังถือปืน</small></h1>
-    <p>ยิงให้กระจุย เข้าไปฟาดตอนแมวเรืองแสงส้มเพื่อกลอรี่คิลเอาเลือดคืน เก็บกระสุนที่หล่นจากศพ ยิงถังแก๊สหุงต้มให้ระเบิดใส่ฝูง ทุก 5 เวฟราชาแมวนรกจะขึ้นมาเอง ตายแล้วเหรียญยังอยู่ไว้ซื้อของถาวร</p>
-    <div class="guns">
-      <div><b>1 · ดีเซิร์ทอีเกิล .50</b>ปืนพกกระสุนไม่จำกัด ยิงหัวแรง</div>
-      <div><b>2 · ลูกซองสองลำกล้อง</b>ประชิดตัว แมวแตกเป็นชิ้น</div>
-      <div><b>3 · AK-47</b>อัตโนมัติ 30 นัด ทะลุ 1 ตัว</div>
-      <div><b>4 · เอ็ม 79</b>ยิงลูกระเบิดโค้ง ระเบิดเมื่อกระทบ</div>
-      <div><b>5 · บาร์เรตต์ .50</b>สไนเปอร์ทะลุทั้งแถว ไม่สนเกราะ</div>
-      <div><b>6 · ปืนพ่นไฟ</b>ย่างทั้งฝูง ไฟลุกลามไปตัวข้างๆ</div>
+  <div class="panel menu-panel">
+    <h1>Aritat ซอยนรก<small>ประตูนรกเปิดกลางซอย ๗ — ลากเอาทวยเทพแห่งยมโลกขึ้นมาด้วย เหลือ Aritat กับเพื่อนอีกไม่กี่คนที่ยังถือปืน</small></h1>
+    <p class="msum" id="menuSum"></p>
+    <div class="mtabs" role="tablist">
+      <button class="mtab on" data-t="lv">ด่าน</button><button class="mtab" data-t="ch">ตัวละคร</button><button class="mtab" data-t="pk">อาชีพ</button><button class="mtab" data-t="gun">อาวุธ</button><button class="mtab" data-t="how">วิธีเล่น / ตั้งค่า</button>
     </div>
-    <p class="hint">เริ่มรอบด้วยปืน 1–2 ปืนอื่นได้จากการ์ดตอนจบเวฟ หรือซื้อถาวรในร้าน</p>
-    <div class="keys">
-      <span><kbd>WASD</kbd>เดิน</span><span><kbd>เมาส์</kbd>เล็ง / คลิกยิง</span><span><kbd>Space</kbd>กระโดด</span>
-      <span><kbd>Shift</kbd>แดช</span><span><kbd>F</kbd>ฟาด · กลอรี่คิล</span><span><kbd>1–6</kbd> / ล้อเมาส์ เปลี่ยนปืน</span><span><kbd>R</kbd>รีโหลด</span>
-      <span><kbd>คลิกขวา</kbd>เล็ง / ซูม</span><span><kbd>C</kbd> / คลิกกลาง โยนเหรียญ</span>
+    <div class="mpane" id="pane-lv"><div id="lvList" class="lvs"></div></div>
+    <div class="mpane" id="pane-ch" hidden>
+      <div class="charpick"><div class="cp-head"><h3>เลือกตัวละคร</h3><label class="field" for="pname">ชื่อในตารางอันดับ <input id="pname" maxlength="14" autocomplete="off" placeholder="Aritat"></label></div><div id="charList" class="chars"></div></div>
     </div>
-    <p class="tips"><b>สำหรับมือแม่น:</b> โยนเหรียญสิบบาทขึ้นฟ้าแล้วยิงให้โดน กระสุนจะเด้งเข้าหัวศัตรูที่ใกล้ที่สุดแรงกว่าเดิมหลายเท่า โยนหลายเหรียญแล้วยิงต่อกันได้ · ยิงหัวติดกันดาเมจเพิ่มเรื่อยๆ · แรงค์สไตล์ D ถึง SSS ยิ่งสูงยิ่งได้เหรียญเยอะ · สีสวาดหุ้มเกราะ ยิงตัวเบา ยิงหัวแรง</p>
-    <div class="opts">
-      <button class="b alt" id="sharpBtn">โหมดมือแม่น: ปิด</button>
-      <button class="b alt" id="qBtn">กราฟิก: สูง</button>
-      <button class="b alt" id="musicBtn">เพลง: เปิด</button>
-      <label class="sens" for="bright">ความสว่าง <input type="range" id="bright" min="0.4" max="2.2" step="0.05" value="1"></label>
+    <div class="mpane" id="pane-pk" hidden>
+      <p class="hint">อาชีพแต่ละสายเก็บเลเวลแยกกัน 0–10 ฆ่าด้วยอาวุธของสายไหนก็ได้ค่าประสบการณ์ของสายนั้น แต่โบนัสจะใช้ได้เฉพาะอาชีพที่เลือกอยู่ ทุก 2 เลเวลปลดล็อกสกิลใหม่</p>
+      <div id="perkList" class="perks"></div>
     </div>
-    <div class="charpick"><div class="cp-head"><h3>เลือกตัวละคร</h3><label class="field" for="pname">ชื่อในตารางอันดับ <input id="pname" maxlength="14" autocomplete="off" placeholder="Aritat"></label></div><div id="charList" class="chars"></div></div>
+    <div class="mpane" id="pane-gun" hidden>
+      <div class="cp-head"><h3>Loadout · พกได้ 4 ชิ้น</h3><span class="coins" id="gunCoins"></span></div>
+      <div id="loSlots" class="loslots"></div>
+      <p class="hint">กดที่อาวุธเพื่อใส่หรือถอดจาก Loadout · ช่อง 1–4 ตรงกับปุ่ม 1–4 ในเกม · ระหว่างเกมยังได้อาวุธเพิ่มจากการ์ดอีก 2 ช่อง · ป้ายสีคืออาชีพที่ได้โบนัสกับอาวุธนั้น</p>
+      <div id="gunList" class="gunlist"></div>
+    </div>
+    <div class="mpane" id="pane-how" hidden>
+      <p>ยิงให้กระจุย เข้าไปฟาดตอนศัตรูเรืองแสงส้มเพื่อกลอรี่คิลเอาเลือดและกระสุนคืน ยิงถังแก๊สหรือไหไฟกรีกให้ระเบิดใส่ฝูง ทุก 5 เวฟบอสจะขึ้นมาเอง ตายแล้วเหรียญยังอยู่ไว้ซื้อของถาวร</p>
+      <div class="keys">
+        <span><kbd>WASD</kbd>เดิน</span><span><kbd>เมาส์</kbd>เล็ง / คลิกยิง</span><span><kbd>Space</kbd>กระโดด</span>
+        <span><kbd>Shift</kbd>แดช</span><span><kbd>F</kbd>ฟาด · กลอรี่คิล</span><span><kbd>1–6</kbd> / ล้อเมาส์ เปลี่ยนอาวุธ</span><span><kbd>R</kbd>รีโหลด</span>
+        <span><kbd>คลิกขวา</kbd>เล็ง · อาวุธประชิด = ฟันหนัก</span><span><kbd>C</kbd> / คลิกกลาง โยนเหรียญ</span><span><kbd>G</kbd>ท่าพิเศษตัวละคร</span><span><kbd>Q</kbd>อาวุธก่อนหน้า</span>
+      </div>
+      <p class="tips"><b>สำหรับมือแม่น:</b> โยนเหรียญสิบบาทขึ้นฟ้าแล้วยิงให้โดน กระสุนจะเด้งเข้าหัวศัตรูที่ใกล้ที่สุด · <b>ทหารโรมันผีดิบ</b> ถือโล่ ยิงด้านหน้าแทบไม่เข้า ยิงหัว ยิงอ้อมข้าง ใช้ระเบิด หรือทุบด้วยค้อน · <b>วิญญาณลีมูเรส</b> พุ่งมาระเบิดตัวเอง ยิงทิ้งก่อนถึงตัว</p>
+      <div class="opts">
+        <button class="b alt" id="sharpBtn">โหมดมือแม่น: ปิด</button>
+        <button class="b alt" id="qBtn">กราฟิก: สูง</button>
+        <button class="b alt" id="musicBtn">เพลง: เปิด</button>
+        <label class="sens" for="bright">ความสว่าง <input type="range" id="bright" min="0.4" max="2.2" step="0.05" value="1"></label>
+      </div>
+      <p class="hint">มือถือ: ลากจอซ้ายเพื่อเดิน ลากจอขวาเพื่อหัน · กด M ปิดเสียงทั้งหมด</p>
+    </div>
     <div class="btns">
       <button class="b" id="startBtn">ลงนรก</button>
       <button class="b" id="coopBtn">เล่นออนไลน์ (สูงสุด 6 คน)</button>
       <button class="b alt" id="lbBtn">🏆 อันดับผู้เล่น</button>
       <button class="b alt" id="shopBtn">ร้านอัปเกรด <span class="coins" id="menuCoins"></span></button>
     </div>
-    <p class="hint">เปิดเสียงด้วยจะมันกว่า · มือถือ: ลากจอซ้ายเพื่อเดิน ลากจอขวาเพื่อหัน · กด M ปิดเสียงทั้งหมด</p>
     <p class="hint" id="bestLine"></p>
   </div>
 </div>
@@ -408,13 +490,15 @@ body.touch #magNum{font-size:40px}
       </div>
     </div>
     <div id="coopRoom" hidden>
-      <h2 id="roomHead">ห้อง</h2>
-      <div id="roomBox"><span>รหัสห้อง</span><b id="roomCode">-----</b><button class="b alt" id="copyCode">คัดลอกรหัส</button><button class="b" id="copyLink" hidden>คัดลอกลิงก์ชวน</button></div>
-      <div class="lobby-cols">
+      <div class="rtop"><h2 id="roomHead">ห้อง</h2><div id="roomBox"><span>รหัสห้อง</span><b id="roomCode">-----</b><button class="b alt" id="copyCode">คัดลอกรหัส</button><button class="b" id="copyLink" hidden>คัดลอกลิงก์ชวน</button></div></div>
+      <aside class="rside">
         <section class="lbox"><h3>ผู้เล่น <span id="pCount">1/6</span></h3><ul id="playerList"></ul></section>
         <section class="lbox chat"><h3>แชต</h3><div id="chatLog"></div><form id="chatForm" autocomplete="off"><input id="chatIn" maxlength="120" placeholder="พิมพ์แล้วกด Enter"><button class="b alt" type="submit">ส่ง</button></form></section>
+      </aside>
+      <div class="rbottom">
+        <div class="rpick" id="roomPick"></div>
+        <div class="btns"><button class="b" id="readyBtn">พร้อม!</button><button class="b" id="coopStart" hidden>เริ่มเกม</button><button class="b alt" id="leaveBtn">ออกจากห้อง</button></div>
       </div>
-      <div class="btns"><button class="b" id="readyBtn">พร้อม!</button><button class="b" id="coopStart" hidden>เริ่มเกม</button><button class="b alt" id="leaveBtn">ออกจากห้อง</button></div>
     </div>
     <p id="coopStatus" class="status"></p>
     <div class="btns"><button class="b alt" id="coopBack">กลับหน้าแรก</button></div>
@@ -425,7 +509,7 @@ body.touch #magNum{font-size:40px}
 <div id="lb" class="overlay" hidden>
   <div class="panel">
     <h2>อันดับผู้เล่น</h2>
-    <div class="btns"><button class="b alt tab" id="lbTabG">ทุกคน</button><button class="b alt tab" id="lbTabL">ของฉัน</button></div>
+    <div class="btns"><button class="b alt tab" id="lbLv1">ด่าน 1 · ซอยนรก</button><button class="b alt tab" id="lbLv2">ด่าน 2 · สนามเทพ</button><span style="flex:1"></span><button class="b alt tab" id="lbTabG">ทุกคน</button><button class="b alt tab" id="lbTabL">ของฉัน</button></div>
     <div id="lbBody"></div>
     <div class="btns"><button class="b" id="lbBack">กลับ</button></div>
   </div>
@@ -488,6 +572,7 @@ body.touch #magNum{font-size:40px}
   </div>
 </div>
 
+<div id="lobbyTags" hidden></div>
 <div id="loading">กำลังเปิดประตูนรก…</div>
 
 <script type="module" src="game.js"></script>

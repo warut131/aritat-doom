@@ -151,8 +151,9 @@ function makeSky() {
 }
 
 // ---------- the world ----------
-export function buildWorld(scene, renderer, quality) {
+export function buildWorld(S0, renderer, quality) {
   _seed = 20261024;
+  const scene = new THREE.Group(); scene.name = 'world1'; S0.add(scene);   // everything of this map lives under one root so maps can be swapped
   const statics = [], obstacles = [], lamps = [], fires = [], animated = [];
   const B = new Builder();
   const proxyMat = new THREE.MeshBasicMaterial({ visible: false });
@@ -512,21 +513,21 @@ export function buildWorld(scene, renderer, quality) {
   embers.frustumCulled = false; scene.add(embers);
 
   const sky = makeSky(); scene.add(sky);
-  scene.fog = new THREE.FogExp2(0x3a2028, 0.0058);
-  scene.background = new THREE.Color(0x120404);
+  const fog = new THREE.FogExp2(0x3a2028, 0.0058), bg = new THREE.Color(0x120404);
+  S0.fog = fog; S0.background = bg;
 
   // ----- environment map: capture the lit street once -----
   function bakeEnv() {
     const pm = new THREE.PMREMGenerator(renderer);
     const rt = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
     const cc = new THREE.CubeCamera(0.5, 300, rt); cc.position.set(0, 3, 0); scene.add(cc);
-    const oldEnv = scene.environment; scene.environment = null;
+    const oldEnv = S0.environment; S0.environment = null;
     // temporarily light the scene from all sources so reflections show neon/fires
     plights.forEach((l, i) => { const s = lightSources[i]; if (s) { l.position.set(s.x, s.y, s.z); l.color.setHex(s.c); l.intensity = s.i; } });
-    cc.update(renderer, scene);
+    cc.update(renderer, S0);
     const env = pm.fromCubemap(rt.texture).texture;
     scene.remove(cc); rt.dispose(); pm.dispose();
-    scene.environment = env || oldEnv; scene.environmentIntensity = 1.25;
+    S0.environment = env || oldEnv; S0.environmentIntensity = 1.25; W.env = S0.environment;
   }
 
   // ----- per-frame -----
@@ -553,7 +554,9 @@ export function buildWorld(scene, renderer, quality) {
   }
   function setShadows(on) { moon.castShadow = on; }
 
-  return { A, statics, obstacles, ambient, bakeEnv, free, setShadows, moon, hemi, sky, splatTex: tex('splat.png', true), M, meshes };
+  const W = { A, root: scene, fog, bg, envI: 1.25, statics, obstacles, ambient, bakeEnv, free, setShadows, moon, hemi, sky, splatTex: tex('splat.png', true), M, meshes, level: 1 };
+  return W;
 }
 
-export { srnd, srg };
+export { srnd, srg, tex, pbr, Builder, worldUV, tint, makeSky };
+export function setSeed(v) { _seed = v; }
