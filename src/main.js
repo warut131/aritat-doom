@@ -18,7 +18,7 @@ const SAVE_KEY='aritat-doom-save-v1';
 let save={coins:0,up:{},best:{wave:0,kills:0,gk:0},runs:0,sens:1,quality:'medium',music:true,bright:1};
 try{const s=JSON.parse(localStorage.getItem(SAVE_KEY));if(s)save=Object.assign(save,s);}catch(e){}
 if(save.brightV!==2){save.bright=1;save.brightV=2;}
-const persist=()=>{try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){}};
+const persist=()=>{save._ts=Date.now();try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){}if(typeof cloudQueue==='function')cloudQueue();};
 const upLv=id=>save.up[id]||0;
 const SHOP=[
  {id:'reload',name:'ฝึกเปลี่ยนแม็กกับทหารพราน',icon:'⏱️',desc:'รีโหลดเร็วขึ้น 10% ต่อเลเวล',max:5,cost:120},
@@ -1400,6 +1400,42 @@ function adsLabel(){const t='คลิกขวาเล็ง: '+(save.adsToggl
  save.coins=Math.max(save.coins,9999999);save.guns=GUNS.map(g=>g.id);for(const s of SHOP)save.up[s.id]=s.max;save.chars=CHARS.map(c=>c.id);save.lvOpen=2;for(const pk of PERKS)save.pxp[pk.id]=Math.max(save.pxp[pk.id]||0,XP_NEED[XP_NEED.length-1]);save.admin=1;persist();
  msg.textContent='ปลดล็อกทุกอย่างแล้ว: ปืนทุกกระบอก ตัวละครทุกตัว ด่านทุกด่าน อาชีพเลเวลเต็ม ร้านค้าเต็ม และเหรียญ 9,999,999';msg.style.color='#9be15d';inp.value='';S.rank&&S.rank(6);
  for(const f of [renderShop,renderLevels,renderPerks,renderLoadout,renderChars,menuSummary])try{f();}catch(e){}};}
+// ---- accounts + cloud save (Supabase RPC; see tools/accounts.sql) ----
+const ACC_KEY='aritat-doom-acc';let ACC={};try{ACC=JSON.parse(localStorage.getItem(ACC_KEY))||{};}catch(e){}
+async function rpc(fn,args){const r=await fetch(LEADERBOARD.url.replace(/\/$/,'')+'/rest/v1/rpc/'+fn,{method:'POST',headers:lbHeaders(),body:JSON.stringify(args)});const t=await r.text();let j=null;try{j=JSON.parse(t);}catch(e){}
+ if(!r.ok){const m=(j&&(j.message||j.hint))||t||'';const code=/taken/.test(m)?'ชื่อนี้มีคนใช้แล้ว':/bad_user/.test(m)?'ชื่อต้องยาว 3–14 ตัว ใช้ได้แค่ไทย อังกฤษ ตัวเลข และ _':/bad_pass/.test(m)?'รหัสผ่านต้องยาว 4 ตัวขึ้นไป':/bad_login/.test(m)?'ชื่อหรือรหัสผ่านไม่ถูกต้อง':/bad_token/.test(m)?'เซสชันหมดอายุ ล็อกอินใหม่อีกครั้ง':r.status===404?'ยังไม่ได้ตั้งค่าระบบบัญชีบนเซิร์ฟเวอร์ (ต้องรัน tools/accounts.sql)':'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ('+r.status+')';const e=new Error(code);e.st=r.status;e.raw=m;throw e;}return j;}
+const accSave=()=>{try{localStorage.setItem(ACC_KEY,JSON.stringify(ACC));}catch(e){}};
+let cloudT=null,cloudBusy=false;
+function cloudQueue(){if(!ACC.t)return;clearTimeout(cloudT);cloudT=setTimeout(cloudPush,2500);}
+async function cloudPush(){if(!ACC.t||cloudBusy)return;cloudBusy=true;try{await rpc('game_store',{p_token:ACC.t,p_data:save});accUi('ok');}catch(e){if(/เซสชัน/.test(e.message)){ACC={};accSave();}accUi('err',e.message);}cloudBusy=false;}
+addEventListener('pagehide',()=>{if(ACC.t&&cloudT){clearTimeout(cloudT);try{fetch(LEADERBOARD.url.replace(/\/$/,'')+'/rest/v1/rpc/game_store',{method:'POST',headers:lbHeaders(),body:JSON.stringify({p_token:ACC.t,p_data:save}),keepalive:true});}catch(e){}}});
+function applyCloud(data){try{localStorage.setItem(SAVE_KEY,JSON.stringify(data));}catch(e){}location.reload();}
+function accUi(st,msg){const b=$('#acctBtn');if(b)b.textContent=ACC.u?'👤 '+ACC.u:'👤 เข้าสู่ระบบ';const pn=$('#pname');if(pn){if(ACC.u){pn.value=ACC.u;pn.readOnly=true;pn.title='ชื่อบัญชี';}else pn.readOnly=false;}
+ const out=$('#acctOut'),inn=$('#acctIn');if(out){out.hidden=!ACC.u;inn.hidden=!!ACC.u;$('#acctWho').textContent=ACC.u||'';}
+ const m=$('#acctSync');if(m&&st)m.textContent=st==='ok'?'☁️ เซฟขึ้นคลาวด์แล้ว '+new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}):st==='err'?'⚠️ '+msg:'';}
+function acctMsg(t,ok){const m=$('#acctMsg');m.textContent=t;m.style.color=ok?'#9be15d':'#ff7a5a';}
+async function acctGo(kind){const u=$('#acctUser').value.trim(),p=$('#acctPass').value;if(!u||!p){acctMsg('ใส่ชื่อและรหัสผ่านก่อน');return;}
+ acctMsg(kind==='reg'?'กำลังสมัคร…':'กำลังเข้าสู่ระบบ…',true);
+ try{const r=await rpc(kind==='reg'?'game_register':'game_login',{p_user:u,p_pass:p});ACC={u:r.username,t:r.token};accSave();
+  const sv=r.data||{};if(kind==='reg'||!sv._ts){save.name=r.username;persist();await cloudPush();acctMsg('สมัครเรียบร้อย ความคืบหน้าในเครื่องนี้ถูกเก็บเข้าบัญชีแล้ว',true);accUi();}
+  else{acctMsg('เข้าสู่ระบบแล้ว กำลังโหลดเซฟ…',true);applyCloud(sv);}}
+ catch(e){acctMsg(e.message);}}
+$('#acctBtn').onclick=()=>{$('#acct').hidden=false;accUi();acctMsg('',true);};
+$('#acctClose').onclick=()=>{$('#acct').hidden=true;};
+$('#acctLogin').onclick=()=>acctGo('login');$('#acctReg').onclick=()=>acctGo('reg');
+for(const id of ['#acctUser','#acctPass'])$(id).addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')acctGo('login');});
+$('#acctLogout').onclick=async()=>{clearTimeout(cloudT);await cloudPush();ACC={};accSave();try{localStorage.removeItem(SAVE_KEY);}catch(e){}location.reload();};
+accUi();
+// on start: pull the newer of cloud / local
+if(ACC.t)rpc('game_load',{p_token:ACC.t}).then(r=>{const sv=r.data||{};if((sv._ts||0)>(save._ts||0)+1000)applyCloud(sv);else if((save._ts||0)>(sv._ts||0))cloudPush();else accUi('ok');}).catch(e=>{if(/เซสชัน/.test(e.message)){ACC={};accSave();accUi();}else accUi('err',e.message);});
+// ---- reward codes ----
+const CODES={TOT:{desc:'10,000 เหรียญ · Sharpshooter เลเวล 5 · Commando เลเวล 8',fn(){save.coins+=10000;save.pxp.sharp=Math.max(save.pxp.sharp||0,XP_NEED[5]);save.pxp.commando=Math.max(save.pxp.commando||0,XP_NEED[8]);}}};
+{const b=$('#codeBtn'),inp=$('#codeIn'),msg=$('#codeMsg');inp.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')b.click();});
+ b.onclick=()=>{const c=inp.value.trim().toUpperCase(),C=CODES[c];if(!Array.isArray(save.codes))save.codes=[];
+  if(!C){msg.textContent='ไม่มีโค้ดนี้';msg.style.color='#ff7a5a';return;}
+  if(save.codes.includes(c)){msg.textContent='โค้ดนี้ใช้ไปแล้ว';msg.style.color='#ff7a5a';return;}
+  C.fn();save.codes.push(c);persist();inp.value='';msg.textContent='รับรางวัลแล้ว: '+C.desc;msg.style.color='#9be15d';S.coin();
+  for(const f of [renderShop,renderLevels,renderPerks,renderLoadout,renderChars,menuSummary])try{f();}catch(e){}};}
 const sensEl=$('#sens');sensEl.value=save.sens;$('#sensVal').textContent=(+save.sens).toFixed(1);
 sensEl.oninput=()=>{save.sens=+sensEl.value;$('#sensVal').textContent=save.sens.toFixed(1);persist();};
 if(isTouch)document.body.classList.add('touch');
@@ -1444,7 +1480,7 @@ const pColor=pid=>PCOLS[(pid||0)%PCOLS.length];
 const MATES=new Map();   // pid -> remote player
 const TYPES=Object.keys(CATS);
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function myName(){return (save.name||'Aritat').slice(0,14);}
+function myName(){return (ACC.u||save.name||'Aritat').slice(0,14);}
 function nameOf(pid){if(pid===undefined||pid===NET.me)return myName();const m=MATES.get(pid);return m?m.name:'เพื่อน';}
 function pN(){return NET.mode?1+[...MATES.values()].length:1;}
 function ownBy(b){return (b===undefined||b===null||b===NET.me)?undefined:b;}

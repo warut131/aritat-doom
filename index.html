@@ -180,7 +180,11 @@ button:focus-visible{outline:3px solid var(--ember);outline-offset:2px}
 .opts{display:flex;flex-wrap:wrap;gap:16px;align-items:center;font-size:14px;color:var(--ash)}
 .admin{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12)}
 .admin input{flex:1;min-width:140px;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.35);color:inherit;font:inherit}
-#adminMsg{flex-basis:100%;font-size:.85em}
+#adminMsg,.amsg{flex-basis:100%;font-size:.85em}
+.acctb{font:700 14px var(--font-ui);color:inherit;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 12px;margin-right:10px;cursor:pointer}
+.acctb:hover{background:rgba(255,255,255,.16)}
+.acctp{max-width:420px}.acctp .field{display:flex;flex-direction:column;gap:4px;margin:10px 0}
+.acctp .field input{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.35);color:inherit;font:inherit}
 label.sens{display:flex;gap:10px;align-items:center;flex:1;min-width:220px}
 label.sens input{flex:1;min-width:0;accent-color:var(--blood)}
 #loading{position:fixed;inset:0;display:grid;place-items:center;background:var(--void);font-family:var(--font-logo);font-size:34px;color:var(--blood);text-align:center;padding:24px}
@@ -470,7 +474,7 @@ body.touch #magNum{font-size:40px}
     <nav class="mtabs" role="tablist">
       <button class="mtab on" data-t="play">เล่น</button><button class="mtab" data-t="ch">ตัวละคร</button><button class="mtab" data-t="pk">อาชีพ</button><button class="mtab" data-t="gun">อาวุธ</button><button class="mtab" data-t="shop">ร้านค้า</button><button class="mtab" data-t="lb">อันดับ</button><button class="mtab" data-t="how">ตั้งค่า</button>
     </nav>
-    <div class="tbr"><span class="coins" id="menuCoins"></span></div>
+    <div class="tbr"><button class="acctb" id="acctBtn">👤 เข้าสู่ระบบ</button><span class="coins" id="menuCoins"></span></div>
   </header>
   <div class="pcard" id="pcard">
     <label class="pname" for="pname"><input id="pname" maxlength="14" autocomplete="off" placeholder="ตั้งชื่อผู้เล่น" aria-label="ชื่อผู้เล่น"></label>
@@ -517,6 +521,7 @@ body.touch #magNum{font-size:40px}
         <label class="sens" for="bright">ความสว่าง <input type="range" id="bright" min="0.4" max="2.2" step="0.05" value="1"></label>
         <button class="b alt" id="adsBtn">คลิกขวาเล็ง: กดค้าง</button>
       </div>
+      <div class="admin"><b>โค้ดของรางวัล</b><input id="codeIn" placeholder="ใส่โค้ด" autocomplete="off"><button class="b alt" id="codeBtn">รับรางวัล</button><span id="codeMsg" class="amsg"></span></div>
       <div class="admin"><b>แอดมิน</b><input id="adminCode" type="password" placeholder="ใส่รหัสแอดมิน" autocomplete="off"><button class="b alt" id="adminBtn">ยืนยัน</button><span id="adminMsg"></span></div>
       <p class="hint">มือถือ: ลากจอซ้ายเพื่อเดิน ลากจอขวาเพื่อหัน · กด M ปิดเสียงทั้งหมด</p>
     </div>
@@ -524,6 +529,25 @@ body.touch #magNum{font-size:40px}
   <div class="playbar">
     <button class="b ghost" id="coopBtn">👥 เล่นออนไลน์<small>สูงสุด 6 คน</small></button>
     <button class="b play" id="startBtn">ลงนรก<small id="playSub">เล่นคนเดียว</small></button>
+  </div>
+</div>
+
+<div id="acct" class="overlay" hidden>
+  <div class="panel acctp">
+    <h2>บัญชีผู้เล่น</h2>
+    <div id="acctIn">
+      <p class="hint">สมัครแล้วเซฟเกมจะเก็บขึ้นคลาวด์ เข้าเล่นต่อได้ทุกเครื่อง ไม่ต้องใช้อีเมล</p>
+      <label class="field" for="acctUser">ชื่อผู้ใช้ <input id="acctUser" maxlength="14" autocomplete="username"></label>
+      <label class="field" for="acctPass">รหัสผ่าน <input id="acctPass" type="password" maxlength="64" autocomplete="current-password"></label>
+      <div class="btns"><button class="b" id="acctLogin">เข้าสู่ระบบ</button><button class="b alt" id="acctReg">สมัครใหม่</button></div>
+    </div>
+    <div id="acctOut" hidden>
+      <p>ล็อกอินเป็น <b id="acctWho"></b></p>
+      <p class="hint" id="acctSync"></p>
+      <div class="btns"><button class="b alt" id="acctLogout">ออกจากระบบ</button></div>
+    </div>
+    <p id="acctMsg" class="amsg"></p>
+    <div class="btns"><button class="b ghost" id="acctClose">ปิด</button></div>
   </div>
 </div>
 
