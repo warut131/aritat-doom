@@ -178,6 +178,9 @@ button:focus-visible{outline:3px solid var(--ember);outline-offset:2px}
 .tips{font-size:14px;color:var(--ash);border-left:3px solid var(--blood);padding-left:10px}
 .tips b{color:#ffd166}
 .opts{display:flex;flex-wrap:wrap;gap:16px;align-items:center;font-size:14px;color:var(--ash)}
+.admin{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12)}
+.admin input{flex:1;min-width:140px;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.35);color:inherit;font:inherit}
+#adminMsg{flex-basis:100%;font-size:.85em}
 label.sens{display:flex;gap:10px;align-items:center;flex:1;min-width:220px}
 label.sens input{flex:1;min-width:0;accent-color:var(--blood)}
 #loading{position:fixed;inset:0;display:grid;place-items:center;background:var(--void);font-family:var(--font-logo);font-size:34px;color:var(--blood);text-align:center;padding:24px}
@@ -512,7 +515,9 @@ body.touch #magNum{font-size:40px}
         <button class="b alt" id="qBtn">กราฟิก: สูง</button>
         <button class="b alt" id="musicBtn">เพลง: เปิด</button>
         <label class="sens" for="bright">ความสว่าง <input type="range" id="bright" min="0.4" max="2.2" step="0.05" value="1"></label>
+        <button class="b alt" id="adsBtn">คลิกขวาเล็ง: กดค้าง</button>
       </div>
+      <div class="admin"><b>แอดมิน</b><input id="adminCode" type="password" placeholder="ใส่รหัสแอดมิน" autocomplete="off"><button class="b alt" id="adminBtn">ยืนยัน</button><span id="adminMsg"></span></div>
       <p class="hint">มือถือ: ลากจอซ้ายเพื่อเดิน ลากจอขวาเพื่อหัน · กด M ปิดเสียงทั้งหมด</p>
     </div>
   </aside>
@@ -596,6 +601,7 @@ body.touch #magNum{font-size:40px}
       <label class="sens" for="bright2">ความสว่าง <input type="range" id="bright2" min="0.4" max="2.2" step="0.05" value="1"></label>
       <button class="b alt" id="qBtn2">กราฟิก: สูง</button>
       <button class="b alt" id="musicBtn2">เพลง: เปิด</button>
+      <button class="b alt" id="adsBtn2">คลิกขวาเล็ง: กดค้าง</button>
     </div>
     <div class="btns">
       <button class="b" id="resumeBtn">ลุยต่อ</button>
