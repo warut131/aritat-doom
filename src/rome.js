@@ -295,7 +295,7 @@ export function buildRome(S0, renderer, quality) {
   const ss = quality === 'high' ? 2048 : 1024; moon.shadow.mapSize.set(ss, ss);
   const sc = moon.shadow.camera; sc.left = -45; sc.right = 45; sc.top = 45; sc.bottom = -45; sc.near = 1; sc.far = 240; moon.shadow.bias = -0.0004; moon.shadow.normalBias = 0.04;
   scene.add(moon); scene.add(moon.target);
-  const NL = quality === 'low' ? 4 : 8, plights = [];
+  const NL = 8, plights = [];
   for (let i = 0; i < NL; i++) { const l = new THREE.PointLight(0xff8a3a, 0, 30, 1.6); scene.add(l); plights.push(l); }
   const lightSources = fires.map(f => ({ x: f.p[0], y: f.p[1], z: f.p[2], c: f.door ? 0xff4a10 : 0xff8a30, i: f.door ? 140 : f.vault ? 18 : 34, flick: 1 }));
   const fireTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const r = g.createRadialGradient(32, 36, 0, 32, 36, 30); r.addColorStop(0, 'rgba(255,240,200,1)'); r.addColorStop(0.3, 'rgba(255,150,40,.8)'); r.addColorStop(1, 'rgba(255,40,0,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
@@ -333,7 +333,7 @@ export function buildRome(S0, renderer, quality) {
       moon.target.position.set(cx, 0, cz); moon.position.set(cx + 28, 60, cz - 90); moon.target.updateMatrixWorld(); sky.position.copy(cam.position);
       lightSources.forEach(s => { s.d = (s.x - cam.position.x) ** 2 + (s.z - cam.position.z) ** 2 - (s.i > 100 ? 3000 : 0); });
       const near = lightSources.slice().sort((a, b) => a.d - b.d);
-      plights.forEach((l, i) => { const s = near[i]; if (!s) { l.intensity = 0; return; } l.position.set(s.x, s.y, s.z); l.color.setHex(s.c); l.distance = s.i > 100 ? 50 : 26;
+      plights.forEach((l, i) => { l.visible = i < W.nLights; const s = near[i]; if (!s) { l.intensity = 0; return; } l.position.set(s.x, s.y, s.z); l.color.setHex(s.c); l.distance = s.i > 100 ? 50 : 26;
         l.intensity = s.i * (0.82 + Math.sin(t * 13 + s.x) * 0.1 + Math.sin(t * 7.3 + s.z) * 0.08); });
     }
     for (const f of flames) { f.b += dt; const k = 0.7 + 0.3 * Math.sin(f.b * (9 + f.i * 3) + f.i) + (Math.random() - 0.5) * 0.08; f.s.scale.set((f.base - f.i * 0.22) * k, (f.base * 1.4 - f.i * 0.2) * k, 1); f.s.position.y = f.y + f.i * 0.28 + Math.sin(f.b * 5 + f.i) * 0.05; }
@@ -341,6 +341,7 @@ export function buildRome(S0, renderer, quality) {
     embGeo.attributes.position.needsUpdate = true;
   }
   function setShadows(on) { moon.castShadow = on; }
-  const W = { A, root: scene, fog, bg, envI: 1.15, statics, obstacles, ambient, bakeEnv, free, setShadows, moon, hemi, sky, M, meshes, level: 2, onFlash: null };
+  function setLightCount(n) { W.nLights = Math.min(n, plights.length); plights.forEach((l, i) => { l.visible = i < W.nLights; }); }
+  const W = { A, root: scene, fog, bg, envI: 1.15, statics, obstacles, ambient, bakeEnv, free, setShadows, setLightCount, nLights: 8, moon, hemi, sky, M, meshes, level: 2, onFlash: null };
   return W;
 }

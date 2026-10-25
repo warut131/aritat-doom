@@ -15,7 +15,7 @@ const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ======================= SAVE ======================= */
 const SAVE_KEY='aritat-doom-save-v1';
-let save={coins:0,up:{},best:{wave:0,kills:0,gk:0},runs:0,sens:1,quality:'high',music:true,bright:1};
+let save={coins:0,up:{},best:{wave:0,kills:0,gk:0},runs:0,sens:1,quality:'medium',music:true,bright:1};
 try{const s=JSON.parse(localStorage.getItem(SAVE_KEY));if(s)save=Object.assign(save,s);}catch(e){}
 if(save.brightV!==2){save.bright=1;save.brightV=2;}
 const persist=()=>{try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){}};
@@ -249,12 +249,20 @@ const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:false,powerPreferenc
 renderer.toneMapping=THREE.NoToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(80,1,0.05,700);camera.rotation.order='YXZ';scene.add(camera);
-if(save.quality!=='high'&&save.quality!=='medium'&&save.quality!=='low')save.quality='high';
+if(save.quality!=='high'&&save.quality!=='medium'&&save.quality!=='low')save.quality='medium';
+if(save.qV!==3){save.qV=3;if(save.quality==='high')save.quality='medium';}
 let post=null;
 function setupPost(){if(post){post.dispose();post=null;}post=createPost(renderer,scene,camera,save.quality);applyBright();}
 const QNAME={high:'สูง',medium:'กลาง',low:'ต่ำ (ลื่นกว่า)'};
-function applyQuality(){const q=save.quality,dpr=devicePixelRatio||1;renderer.setPixelRatio(q==='high'?Math.min(1.5,dpr):q==='medium'?Math.min(1,dpr):Math.min(1,dpr)*0.75);
- renderer.shadowMap.enabled=q!=='low';W.setShadows(q!=='low');scene.traverse(o=>{if(o.material&&o.material.needsUpdate!==undefined)o.material.needsUpdate=true;});setupPost();resize();
+// dynamic resolution: the render scale follows the measured frame time
+const DYN={scale:1,acc:0,n:0,t:0};
+function basePR(){const q=save.quality,dpr=devicePixelRatio||1;return q==='high'?Math.min(1.25,dpr):q==='medium'?Math.min(0.9,dpr):Math.min(0.7,dpr);}
+function setPR(){renderer.setPixelRatio(basePR()*DYN.scale);resize();}
+function dynRes(dt){if(state!=='play'&&state!=='menu')return;DYN.acc+=dt;DYN.n++;DYN.t+=dt;if(DYN.t<1.2)return;const avg=DYN.acc/DYN.n;DYN.acc=0;DYN.n=0;DYN.t=0;
+ const min=save.quality==='low'?0.6:0.65;if(avg>1/50&&DYN.scale>min){DYN.scale=Math.max(min,DYN.scale-0.1);setPR();}else if(avg<1/58&&DYN.scale<1){DYN.scale=Math.min(1,DYN.scale+0.05);setPR();}}
+const LIGHTS_Q={high:8,medium:5,low:3};
+function applyQuality(){const q=save.quality;DYN.scale=1;renderer.setPixelRatio(basePR());
+ renderer.shadowMap.enabled=q!=='low';for(const k in WORLDS){WORLDS[k].setShadows(q!=='low');WORLDS[k].setLightCount(LIGHTS_Q[q]);}scene.traverse(o=>{if(o.material&&o.material.needsUpdate!==undefined)o.material.needsUpdate=true;});setupPost();resize();
  ['#qBtn','#qBtn2'].forEach(s=>$(s).textContent='กราฟิก: '+QNAME[q]);}
 const splatCv=$('#splat'),sctx=splatCv.getContext('2d');
 function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();if(post)post.setSize(w,h);splatCv.width=Math.round(w/2);splatCv.height=Math.round(h/2);}
@@ -274,7 +282,7 @@ const statics=W.statics.slice(),obstacles=W.obstacles.slice();
 const LEVELS={1:{name:'ซอยนรก',sub:'ด่าน 1 · แมวปีศาจ',need:0},2:{name:'สนามเทพแห่งยมโลก',sub:'ด่าน 2 · ทวยเทพโรมัน',need:20}};
 if(!save.lvOpen)save.lvOpen=1;if(!save.bestLv)save.bestLv={};
 async function setLevel(lv){lv=lv===2?2:1;if(LEVEL===lv&&WORLDS[lv])return;
- if(!WORLDS[lv]){if(!setLevel.p)setLevel.p=(async()=>{$('#loading').hidden=false;$('#loading').textContent='กำลังเปิดสนามเทพแห่งยมโลก…';await preloadRome();await new Promise(r=>setTimeout(r,30));const w=buildRome(scene,renderer,save.quality);w.root.visible=false;w.onFlash=()=>{if(AC&&!muted&&state!=='menu'){S.boom(0.5);}};WORLDS[2]=w;})();await setLevel.p;if(LEVEL===lv)return;}
+ if(!WORLDS[lv]){if(!setLevel.p)setLevel.p=(async()=>{$('#loading').hidden=false;$('#loading').textContent='กำลังเปิดสนามเทพแห่งยมโลก…';await preloadRome();await new Promise(r=>setTimeout(r,30));const w=buildRome(scene,renderer,save.quality);w.root.visible=false;w.setLightCount(LIGHTS_Q[save.quality]);w.setShadows(save.quality!=='low');w.onFlash=()=>{if(AC&&!muted&&state!=='menu'){S.boom(0.5);}};WORLDS[2]=w;})();await setLevel.p;if(LEVEL===lv)return;}
  for(const k in WORLDS)WORLDS[k].root.visible=(+k===lv);
  W=WORLDS[lv];LEVEL=lv;scene.fog=W.fog;scene.background=W.bg;W.setShadows(save.quality!=='low');
  for(const b of barrels.slice())removeBarrel(b);barrels.length=0;
@@ -507,6 +515,7 @@ function spawnEnemy(type,x,z,net){
  const e=Object.assign(m,{burn:0,slowT:0,id:net?net.id:nextEid++,onG:true,side:Math.random()<0.5?1:-1,stuck:0,landed:false,baseEm:new THREE.Color(C.body).multiplyScalar(0.14),type,C,hp:C.hp*hpS,max:C.hp*hpS,spd:C.spd*rand(0.92,1.1),dmg:C.dmg*dS,s:C.s,rad:(C.rad||0.42)*C.s,y:0,vy:0,st:'run',t:rand(1.5,3),atkCd:0.6,flash:0,knock:new THREE.Vector3(),phase:Math.random()*10,lunge:0,dead:false,slamCd:4,sumCd:6,stagger:0,canStagger:!C.boss,corpse:0,baseCol:new THREE.Color(C.body)});
  if(net){e.tx=x;e.tz=z;e.ty=net.y;e.tr=0;e.y=net.y;m.g.position.y=net.y;}
  else if(C.fly){e.y=C.kind==='krasue'||C.kind==='lemure'?rand(0.4,1.6):C.boss&&C.rom?4:rand(3.5,6);e.ty=e.y;e.ang=Math.atan2(z-P.pos.z,x-P.pos.x);e.dirSign=Math.random()<0.5?1:-1;e.st='orbit';m.g.position.y=e.y;}
+ if(save.quality!=='high'&&!C.boss)m.g.traverse(o=>{if(o.isMesh)o.castShadow=false;});
  m.body.userData.e=e;m.head.userData.e=e;m.head.userData.head=true;if(U&&P&&P.ups&&U('bighead'))bigHead(e);hitMeshes.push(m.body,m.head);m.g.updateMatrixWorld(true);
  // spawn burst
  fx(x,1,z,{color:0xff3010,s0:0.5,s1:4*C.s,life:0.5});for(let i=0;i<6;i++)fx(x,rand(0.2,1.5),z,{tex:smokeTex,add:false,color:0x1a0505,s0:1,s1:3,life:1,vy:1.5,vx:rand(-1,1),vz:rand(-1,1),op:0.7});
@@ -1176,10 +1185,14 @@ function renderChars(){const box=$('#charList');if(!box)return;box.innerHTML='';
   d.appendChild(b);box.appendChild(d);}
  const pn=$('#pname');if(pn&&document.activeElement!==pn)pn.value=save.name||'';}
 // ---------- menu tabs: levels, perks, loadout ----------
-let menuTab=save.menuTab||'lv';
-function setTab(t){menuTab=t;save.menuTab=t;persist();document.querySelectorAll('.mtab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.mpane').forEach(p=>p.hidden=p.id!=='pane-'+t);}
+let menuTab=save.menuTab&&save.menuTab!=='lv'?save.menuTab:'play';
+function setTab(t){if(!document.querySelector('#pane-'+t))t='play';menuTab=t;save.menuTab=t;persist();$('#menu').dataset.tab=t;
+ if(t==='shop'){shopFrom='menu';$('#shopHost').appendChild($('#shopList'));renderShop();}if(t==='lb'){lbLv=LEVEL;renderLb();}if(t==='gun')renderLoadout();if(t==='pk')renderPerks();document.querySelectorAll('.mtab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.mpane').forEach(p=>p.hidden=p.id!=='pane-'+t);}
 document.querySelectorAll('.mtab').forEach(b=>b.onclick=()=>{setTab(b.dataset.t);S.pick&&audio();});
-function menuSummary(){const pk=curPerk(),C=curChar();$('#menuSum').innerHTML=`${LEVELS[LEVEL].sub} · ${C.icon} ${C.name} · ${pk.icon} ${pk.name} Lv${perkLv(pk.id)} · ${(save.loadout||[]).map(id=>(GUNS[GI(id)]||{}).short).filter(Boolean).join(' / ')}`;}
+function menuSummary(){const pk=curPerk(),C=curChar(),lv=perkLv(pk.id),x=save.pxp[pk.id]||0,nx=XP_NEED[Math.min(10,lv+1)],px=XP_NEED[lv];
+ $('#pcInfo').innerHTML=`<div class="row"><span>${C.icon} ${C.name}</span><span style="color:${C.col}">${C.role}</span></div><div class="row"><span style="color:${pk.col}">${pk.icon} ${pk.name}</span><span>Lv ${lv}</span></div><div class="xpb" style="--pc:${pk.col}"><i style="width:${lv>=10?100:Math.round((x-px)/(nx-px)*100)}%"></i></div>`;
+ $('#playSub').textContent=LEVELS[LEVEL].name+' · เล่นคนเดียว';
+ $('#menuSum').innerHTML=`${LEVELS[LEVEL].sub} · ${C.icon} ${C.name} · ${pk.icon} ${pk.name} Lv${perkLv(pk.id)} · ${(save.loadout||[]).map(id=>(GUNS[GI(id)]||{}).short).filter(Boolean).join(' / ')}`;}
 function renderLevels(){const box=$('#lvList');if(!box)return;box.innerHTML='';
  for(const lv of [1,2]){const L=LEVELS[lv],open=lv<=save.lvOpen,d=document.createElement('button');d.className='lv l'+lv+(LEVEL===lv?' sel':'')+(open?'':' lock');
   const best=(save.bestLv||{})[lv]||(lv===1?save.best.wave:0);
@@ -1221,21 +1234,21 @@ async function renderLb(){const body=$('#lbBody');$('#lbTabG').classList.toggle(
  if(lbTab==='l'){body.innerHTML=lbTable(save.hist.filter(h=>(h.level||1)===lbLv),false);return;}
  if(!lbOn()){body.innerHTML='<p class="hint">อันดับรวมทุกคนยังไม่ได้เชื่อมฐานข้อมูล ตอนนี้ดูสถิติของตัวเองได้ที่แท็บ "ของฉัน"</p>';return;}
  body.innerHTML='<p class="hint">กำลังโหลด…</p>';const want=lbLv;try{const rows=await lbFetch(want);if(want===lbLv&&lbTab==='g')body.innerHTML=lbTable(rows,true);}catch(e){body.innerHTML='<p class="hint">โหลดอันดับไม่สำเร็จ ('+esc(e.message)+')</p>';}}
-$('#lbBtn').onclick=()=>{audio();hideAll();lbLv=LEVEL;$('#lb').hidden=false;renderLb();};$('#lbLv1').onclick=()=>{lbLv=1;renderLb();};$('#lbLv2').onclick=()=>{lbLv=2;renderLb();};$('#lbBack').onclick=showMenu;
+$('#lbLv1').onclick=()=>{lbLv=1;renderLb();};$('#lbLv2').onclick=()=>{lbLv=2;renderLb();};
 $('#lbTabG').onclick=()=>{lbTab='g';renderLb();};$('#lbTabL').onclick=()=>{lbTab='l';renderLb();};
 $('#pname').addEventListener('keydown',e=>e.stopPropagation());$('#pname').addEventListener('input',e=>{save.name=e.target.value.trim().slice(0,14);persist();});
 const statHtml=a=>a.map(([k,v])=>`<div>${k}<b>${v}</b></div>`).join('');
-function showMenu(){state='menu';lobbyOff();hideAll();removeAvatars();if(enemies){enemies.forEach(e=>{if(!e.gone)disposeCat(e);});enemies=[];}unlock();$('#hud').hidden=true;$('#touch').hidden=true;$('#menu').hidden=false;$('#menuCoins').textContent='🪙 '+save.coins;renderMenuAll();
+function showMenu(){state='menu';hideAll();lobbyOn('home');removeAvatars();if(enemies){enemies.forEach(e=>{if(!e.gone)disposeCat(e);});enemies=[];}unlock();$('#hud').hidden=true;$('#touch').hidden=true;$('#menu').hidden=false;$('#menuCoins').textContent='🪙 '+save.coins;renderMenuAll();
  $('#bestLine').textContent=save.runs?`สถิติดีที่สุด: เวฟ ${save.best.wave} · ไล่แมว ${save.best.kills} ตัว · แรงค์ ${RANKS[save.best.rank||0][1]} · หัวติดกัน ${save.best.streak||0} นัด`:'';}
 let shopFrom='menu';
-function openShop(from){shopFrom=from;hideAll();$('#shop').hidden=false;renderShop();}
-function renderShop(){$('#shopCoins').textContent='🪙 '+save.coins;const box=$('#shopList');box.innerHTML='';
+function openShop(from){shopFrom=from;hideAll();$('#shop').hidden=false;$('#shop .panel .btns').before($('#shopList'));renderShop();}
+function renderShop(){$('#shopCoins').textContent='🪙 '+save.coins;$('#menuCoins').textContent='🪙 '+save.coins;const box=$('#shopList');box.innerHTML='';
  for(const s of SHOP){const l=upLv(s.id),c=shopCost(s),maxed=l>=s.max;const d=document.createElement('div');d.className='card';
   d.innerHTML=`<span class="ic">${s.icon}</span><span class="nm">${s.name}</span><span class="ds">${s.desc}</span><span class="pips">${Array.from({length:s.max},(_,i)=>`<i class="${i<l?'on':''}"></i>`).join('')}</span>`;
   const b=document.createElement('button');b.className='b'+(maxed||save.coins<c?' alt':'');b.textContent=maxed?'เต็มแล้ว':'ซื้อ 🪙 '+c;b.disabled=maxed||save.coins<c;
   b.onclick=()=>{if(save.coins>=c&&!maxed){save.coins-=c;save.up[s.id]=l+1;persist();S.coin();renderShop();}};d.appendChild(b);box.appendChild(d);}}
 $('#startBtn').onclick=()=>{netClose();startGame();};$('#againBtn').onclick=()=>{if(NET.mode)backToLobby();else if(NET.wasOnline){NET.wasOnline=false;openCoop();}else startGame();};$('#menuBtn').onclick=showMenu;
-$('#shopBtn').onclick=()=>{audio();startMusic();openShop('menu');};$('#overShopBtn').onclick=()=>openShop('over');
+$('#overShopBtn').onclick=()=>openShop('over');
 $('#shopBack').onclick=()=>{if(shopFrom==='over'){hideAll();$('#over').hidden=false;}else showMenu();};
 $('#resumeBtn').onclick=resume;$('#quitBtn').onclick=()=>{$('#pause').hidden=true;state='play';if(NET.mode){NET.send({t:'bye'});netClose();}endRun();};
 $('#menuBtn').addEventListener('click',()=>{if(NET.mode){NET.send({t:'bye'});netClose();}});
@@ -1316,8 +1329,8 @@ function netClose(){if(NET.mode==='host'&&NET.code)dirUnreg();
  try{if(NET.conn)NET.conn.close();}catch(e){}for(const c of NET.conns.values())try{c.close();}catch(e){}try{if(NET.peer)NET.peer.destroy();}catch(e){}
  NET.mode=null;NET.me=0;NET.joined=false;NET.started=false;NET.ready=false;NET.conn=null;NET.peer=null;NET.conns.clear();removeAvatars();MATES.clear();$('#mates').hidden=true;}
 // ---------- lobby screens ----------
-function showEntry(msg){$('#coopEntry').hidden=false;$('#coopRoom').hidden=true;lobbyOff();netStatus(msg||'');dirEnsure();dirRefresh();}
-function showRoom(){$('#coopEntry').hidden=true;$('#coopRoom').hidden=false;lobbyOn();renderRoom();}
+function showEntry(msg){$('#coopEntry').hidden=false;$('#coopRoom').hidden=true;lobbyOn('home');netStatus(msg||'');dirEnsure();dirRefresh();}
+function showRoom(){$('#coopEntry').hidden=true;$('#coopRoom').hidden=false;lobbyOn('room');renderRoom();}
 function openCoop(){NET.wasOnline=false;audio();startMusic();hideAll();$('#coop').hidden=false;state='menu';$('#coopName').value=save.name||'';if(!$('#roomTitle').value)$('#roomTitle').placeholder='ซอยของ '+myName();
  if(NET.mode&&NET.connected)showRoom();else{if(NET.mode)netClose();showEntry(onlineOK()?'':'เบราว์เซอร์นี้ไม่รองรับการเล่นออนไลน์ ลองใช้ Chrome หรือ Edge');}}
 function renderRoom(){
@@ -1688,28 +1701,31 @@ addEventListener('pagehide',()=>{if(NET.mode)NET.send({t:'bye'});});
 /* ======================= 3D LOBBY ======================= */
 const LOBBY={on:false,av:new Map(),t:0};
 const lobbyLight=new THREE.SpotLight(0xffe2c8,0,26,0.8,0.6,1.1);lobbyLight.position.set(0,4.2,3.2);lobbyLight.target.position.set(0,0,-3.2);scene.add(lobbyLight,lobbyLight.target);
-function lobbyMembers(){const list=[];
+function lobbyMembers(){const list=[];if(LOBBY.mode!=='room'||!NET.mode)return [{pid:NET.me||0,name:myName(),me:true,solo:true,ready:false,ch:save.char,pk:save.perk,pl:perkLv(save.perk)}];
  if(NET.mode==='host')list.push({pid:NET.me,name:myName(),host:true,ready:true,me:true,ch:save.char,pk:save.perk,pl:perkLv(save.perk)});
  else{const h=MATES.get(0)||{};list.push({pid:0,name:NET.hostName||'หัวห้อง',host:true,ready:true,ch:h.ch||'aritat',pk:h.pk||'commando',pl:h.pl||0});}
  for(const m of MATES.values())if(m.pid!==0)list.push({pid:m.pid,name:m.name,ready:m.ready,ch:m.ch,pk:m.pk,pl:m.pl});
  if(NET.mode==='client')list.push({pid:NET.me,name:myName(),ready:NET.ready,me:true,ch:save.char,pk:save.perk,pl:perkLv(save.perk)});
  return list.sort((a,b)=>a.pid-b.pid);}
-function lobbyOn(){if(LOBBY.on)return;LOBBY.on=true;$('#coop').classList.add('room3d');$('#lobbyTags').hidden=false;lobbyLight.intensity=220;}
-function lobbyOff(){if(!LOBBY.on)return;LOBBY.on=false;$('#coop').classList.remove('room3d');$('#lobbyTags').hidden=true;$('#lobbyTags').innerHTML='';lobbyLight.intensity=0;for(const a of LOBBY.av.values())scene.remove(a.g);LOBBY.av.clear();}
+function lobbyOn(mode){if(LOBBY.on&&LOBBY.mode===mode){refreshLobby3D();return;}LOBBY.on=true;LOBBY.mode=mode;$('#coop').classList.toggle('room3d',mode==='room');$('#lobbyTags').hidden=mode!=='room';lobbyLight.intensity=mode==='room'?150:80;refreshLobby3D();}
+function lobbyOff(){if(!LOBBY.on)return;LOBBY.on=false;LOBBY.mode=null;$('#coop').classList.remove('room3d');$('#lobbyTags').hidden=true;$('#lobbyTags').innerHTML='';lobbyLight.intensity=0;for(const a of LOBBY.av.values())scene.remove(a.g);LOBBY.av.clear();}
 function refreshLobby3D(){if(!LOBBY.on)return;const list=lobbyMembers(),seen=new Set();const n=list.length;
  list.forEach((p,i)=>{seen.add(p.pid);let a=LOBBY.av.get(p.pid);if(a&&a.ch!==p.ch){scene.remove(a.g);a=null;}
   if(!a){const R=buildCharacter(CHARS.some(c=>c.id===p.ch)?p.ch:'aritat');const g=new THREE.Group();g.add(R.mesh);scene.add(g);const ring=new THREE.Mesh(new THREE.RingGeometry(0.42,0.5,40),new THREE.MeshBasicMaterial({color:pColor(p.pid),transparent:true,opacity:0.85,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=0.03;g.add(ring);
    const tag=document.createElement('div');tag.className='ltag';$('#lobbyTags').appendChild(tag);a={R,g,ch:p.ch,tag,pop:0,ring};LOBBY.av.set(p.pid,a);S.pick&&S.pick(600+i*120);}
-  const off=(i-(n-1)/2)*1.35;a.tx=off;a.tz=-3.2-Math.abs(off)*0.22;a.p=p;
+  const off=(i-(n-1)/2)*1.6;a.tx=off;a.tz=-3.2-Math.abs(off)*0.22;a.p=p;
   const pk=PERKS.find(x=>x.id===p.pk)||PERKS[0],C=CHARS.find(c=>c.id===p.ch)||CHARS[0];a.tag.style.setProperty('--pc',pColor(p.pid));
-  a.tag.innerHTML=`<b>${esc(p.name)}${p.me?' (คุณ)':''}</b><small>${C.icon} ${C.name} · <span style="color:${pk.col}">${pk.icon} ${pk.name} Lv${p.pl||0}</span></small><span class="rd ${p.host?'host':p.ready?'ok':''}">${p.host?'👑 หัวห้อง':p.ready?'✔ พร้อม':'ยังไม่พร้อม'}</span>`;});
+  a.tag.innerHTML=`<b>${esc(p.name)}${p.me?' (คุณ)':''}</b><small>${C.icon} ${C.name}</small><small style="color:${pk.col}">${pk.icon} ${pk.name} Lv${p.pl||0}</small><span class="rd ${p.host?'host':p.ready?'ok':''}">${p.host?'👑 หัวห้อง':p.ready?'✔ พร้อม':'ยังไม่พร้อม'}</span>`;});
  for(const [pid,a] of [...LOBBY.av])if(!seen.has(pid)){scene.remove(a.g);a.tag.remove();LOBBY.av.delete(pid);}}
-function lobbyScene(dt){LOBBY.t+=dt;camera.position.set(Math.sin(LOBBY.t*0.2)*0.25,1.45,2.3);camera.lookAt(0,1.05,-3.2);camera.fov=52;camera.updateProjectionMatrix();
+function lobbyScene(dt){LOBBY.t+=dt;const home=LOBBY.mode==='home',asp=innerWidth/innerHeight;
+ if(home&&asp>1.15){const ox=Math.min(2.4,1.0+asp*0.6);camera.position.set(ox+Math.sin(LOBBY.t*0.2)*0.15,1.4,1.7);camera.lookAt(ox,1.0,-3.2);camera.fov=50;}
+ else if(home){camera.position.set(Math.sin(LOBBY.t*0.2)*0.1,1.25,3.6);camera.lookAt(0,0.55,-3.2);camera.fov=52;}
+ else{camera.position.set(Math.sin(LOBBY.t*0.2)*0.25,1.45,2.3);camera.lookAt(0,1.05,-3.2);camera.fov=52;}camera.updateProjectionMatrix();
  const Wd=innerWidth,H=innerHeight;
  for(const a of LOBBY.av.values()){a.pop=Math.min(1,a.pop+dt*3);const g=a.g;if(g.position.x===0&&g.position.z===0&&a.pop<0.2){g.position.set(a.tx,0,a.tz);}
   g.position.x+=(a.tx-g.position.x)*Math.min(1,dt*6);g.position.z+=(a.tz-g.position.z)*Math.min(1,dt*6);const s=0.6+0.4*(1-Math.pow(1-a.pop,3));g.scale.setScalar(s);
   g.rotation.y=Math.atan2(camera.position.x-g.position.x,camera.position.z-g.position.z)*0.8+Math.sin(LOBBY.t*0.6+a.tx)*0.08;
-  const rd=a.p&&(a.p.ready||a.p.host);poseHuman(a.R,dt,{speed:0,t:LOBBY.t+a.tx,aim:rd?1:0,lunge:rd&&a.R.style!=='gun'?0.32:0});a.ring.material.opacity=0.55+0.3*Math.sin(LOBBY.t*3+a.tx);
+  const rd=a.p&&(a.p.solo?(LOBBY.t%7)>5:(a.p.ready||a.p.host));poseHuman(a.R,dt,{speed:0,t:LOBBY.t+a.tx,aim:rd?1:0,lunge:rd&&a.R.style!=='gun'?0.32:0});a.ring.material.opacity=0.55+0.3*Math.sin(LOBBY.t*3+a.tx);
   a.R.J.head.getWorldPosition(_d);_d.y+=0.42*s;_d.project(camera);a.tag.style.left=((_d.x*0.5+0.5)*Wd)+'px';a.tag.style.top=((-_d.y*0.5+0.5)*H)+'px';}}
 function renderRoomPick(){const box=$('#roomPick');if(!box)return;
  const chars=CHARS.filter(c=>save.chars.includes(c.id)).map(c=>`<button class="${save.char===c.id?'on':''}" data-c="${c.id}" title="${c.name}">${c.icon}</button>`).join('');
@@ -1727,7 +1743,8 @@ function menuScene(dt){menuT+=dt;
  menuCats.forEach((m,i)=>{m.anim(dt,{speed:0,t:menuT+i*1.7,scale:m.inner.scale.x,crouch:m===menuCats[2]&&Math.sin(menuT*0.7)>0.6});m.g.rotation.y=Math.atan2(-m.g.position.x*0.3,8)+Math.sin(menuT*0.4+i)*0.25;});}
 function clearMenuCats(){menuCats.forEach(m=>disposeCat(m));menuCats.length=0;}
 let splatAcc=0;
-function frame(now){const dt=Math.min(0.05,(now-lastTime)/1000);lastTime=now;
+let frameN=0;renderer.shadowMap.autoUpdate=false;
+function frame(now){const rawDt=(now-lastTime)/1000,dt=Math.min(0.05,rawDt);lastTime=now;dynRes(Math.min(0.2,rawDt));renderer.shadowMap.needsUpdate=(frameN++%2===0);
  ambient(dt,now);
  if(state==='menu'||(state==='over'&&!P)){menuScene(dt);if(LOBBY.on)lobbyScene(dt);}
  else{vm.visible=!window.__noVm;if(state==='play'||(state==='paused'&&NET.mode)){if(!window.__noUpd)update(dt);}else if(state==='over'||state==='upgrade'||state==='paused'||state==='wait'){updateFxAndGore(state==='paused'?0:dt*0.5);updateAvatar(dt);}if(P&&!window.__noHud)updateHud();}
