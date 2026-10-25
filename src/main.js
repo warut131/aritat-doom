@@ -31,7 +31,6 @@ const SHOP=[
  {id:'greed',name:'กระปุกออมสิน',icon:'🐷',desc:'เหรียญที่ได้ +12%',max:6,cost:160},
  {id:'magnet',name:'แม่เหล็กติดรองเท้า',icon:'🧲',desc:'ดูดของรอบตัวไกลขึ้น 40%',max:2,cost:120},
  {id:'dash',name:'รองเท้าวิ่งมาราธอน',icon:'💨',desc:'แดชคูลดาวน์ลด 10%',max:3,cost:140},
- {id:'reroll',name:'ใบ้หวยงวดนี้',icon:'🎟️',desc:'สุ่มการ์ดอัปเกรดใหม่ฟรีเพิ่ม 1 ครั้งต่อเวฟ',max:2,cost:300},
  {id:'start',name:'ของขวัญจากแม่',icon:'🎁',desc:'เริ่มรอบด้วยอัปเกรดฟรี 1 อย่าง',max:2,cost:420},
  {id:'rate',name:'กาแฟโบราณร้านป้า',icon:'☕',desc:'ยิงเร็วขึ้น 4% ต่อเลเวล',max:5,cost:220},
  {id:'speed',name:'รองเท้าผ้าใบมือสอง',icon:'👟',desc:'วิ่งเร็วขึ้น 4% ต่อเลเวล',max:4,cost:200},
@@ -86,6 +85,8 @@ const sk=(id,lv)=>!!(P&&P.pk&&P.pk.id===id&&P.pk.lv>=lv);
 const isPerkGun=gid=>!!(P&&P.pk&&PERK_OF[gid]===P.pk.id);
 function perkDmg(gid){if(!isPerkGun(gid))return 1;const pk=curPerk();return (1+pk.rate*P.pk.lv)*(P.pk.id==='demo'&&P.pk.lv>=10?1.3:1);}
 const isChar=id=>save.char===id;
+// reroll shop item removed: refund what was paid
+if(save.up&&save.up.reroll){let c=0;for(let i=0;i<save.up.reroll;i++)c+=Math.round(300*Math.pow(1.75,i));save.coins+=c;delete save.up.reroll;try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){}}
 const shopCost=s=>Math.round(s.cost*Math.pow(1.75,upLv(s.id)));
 
 /* ======================= AUDIO ======================= */
@@ -977,7 +978,7 @@ function updateHud(){
  const boss=enemies.find(e=>e.C.boss&&!e.dead);$('#bossbar').hidden=!boss;if(boss){$('#bossfill').style.width=clamp(boss.hp/boss.max*100,0,100)+'%';const bs=$('#bossbar span');if(bs.textContent!==boss.C.name)bs.textContent=boss.C.name;}
  {const r=rankIdx(),R0=RANKS[r],R1=RANKS[r+1];const el=$('#rank');setT('#rank',R0[1]);el.style.color=R0[2];
   const f=R1?(style-R0[0])/(R1[0]-R0[0]):1;$('#sfill').style.width=(clamp(f,0,1)*100).toFixed(1)+'%';$('#sfill').style.background=R0[2];
-  setT('#smul',`เหรียญ x${((1+Math.floor(combo/5)*0.5)*(1+r*0.15)*(save.sharp?1.5:1)*P.coinMul).toFixed(2)}`+(combo>=3?` · คอมโบ ${combo}`:''));
+  setT('#smul',`เหรียญ x${((1+r*0.15)*(save.sharp?1.5:1)*P.coinMul).toFixed(2)}`+(combo>=3?` · คอมโบ ${combo}`:''));
   setT('#sevents',styleEvents.map(ev=>`<span class="${ev.neg?'neg':''}" style="opacity:${Math.min(1,ev.t*1.5).toFixed(2)}">${ev.neg?'−':'+'} ${ev.label}</span>`).join(''));}
  $('#sharpBadge').hidden=!save.sharp;
  {const sc=isScoped();$('#scope').hidden=!sc;$('#cross').style.opacity=sc?0:1;}
@@ -1278,7 +1279,7 @@ function renderCards(){const box=$('#upCards');box.innerHTML='';
   b.onclick=()=>pickUp(u);box.appendChild(b);});
  const rb=$('#rerollBtn');const fr=P.rerolls>0;rb.textContent=fr?`🎲 สุ่มการ์ดใหม่ (เหลือ ${P.rerolls} ครั้ง)`:'🎲 สุ่มใหม่หมดแล้ว';rb.disabled=!fr;}
 function openUpgrade(free){state='upgrade';firing=false;unlock();flameSound(false);upFree=!!free;
- if(!free)P.rerolls=1+upLv('reroll');if(free&&P.freeL>0){P.freeL--;upOpts=rollCards('l');}else upOpts=rollCards();
+ if(!free)P.rerolls=1;if(free&&P.freeL>0){P.freeL--;upOpts=rollCards('l');}else upOpts=rollCards();
  $('#upTitle').textContent=free?'ของขวัญจากแม่':'เคลียร์เวฟ '+wave;$('#upSub').textContent=free?'เลือกอัปเกรดฟรีก่อนลงนรก':'เลือก 1 ใบ · พลังชีวิตฟื้น 20% · การ์ดสีม่วงคือคำสาป ได้ของแรงแต่มีราคาต้องจ่าย';
  renderCards();$('#upgrade').hidden=false;setTimeout(()=>{const c=$('#upCards .card');c&&c.focus();},30);}
 $('#rerollBtn').onclick=()=>{if(state!=='upgrade'||P.rerolls<=0)return;P.rerolls--;S.coin();upOpts=rollCards();renderCards();};
