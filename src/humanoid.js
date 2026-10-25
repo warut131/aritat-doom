@@ -226,6 +226,7 @@ export function poseHuman(R, dt, o) {
   J.spine.rotation.set(lean * 0.5, -s * 0.08 * run, 0); J.chest.rotation.set(lean * 0.5 + br, -s * 0.06 * run, 0);
   J.shL.rotation.set(aL[0], aL[1], aL[2]); J.shR.rotation.set(aR[0], aR[1], aR[2]);
   J.elL.rotation.set(eL, 0, 0); J.elR.rotation.set(eR, 0, 0); J.haL.rotation.set(wL, 0, 0); J.haR.rotation.set(wR, 0, 0);
+  if (o.hit > 0.01 && !o.stagger) { const h = o.hit, sd = o.hitSide || 1; J.chest.rotation.x -= 0.4 * h; J.spine.rotation.x -= 0.15 * h; J.chest.rotation.z += 0.18 * h * sd; J.head.rotation.x -= 0.35 * h; J.head.rotation.z += 0.2 * h * sd; J.shL.rotation.z += 0.3 * h; J.shR.rotation.z -= 0.3 * h; J.hips.position.y -= 0.03 * h; }
   if (R.ik && !o.stagger) { const k = (o.aim || 0); armIK(J.shR, J.elR, R.ik.R, -0.5); armIK(J.shL, J.elL, R.ik.L, 0.7); J.haR.rotation.set(0.3, 0, 0); J.haL.rotation.set(0.2, 0, 0); J.chest.rotation.x -= k * 0.25; }
   if (R.extra) R.extra(R, dt, o, t);
 }
