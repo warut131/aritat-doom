@@ -343,8 +343,11 @@ function buildLemure(C) {
   const headHit = new THREE.Mesh(HG.sph, hitMat); headHit.scale.setScalar(0.14); headHit.position.z = 0.06; head.add(headHit);
   const mats = [bone, dark, eye, ...fl.map(s => s.material), trail.material];
   const obj = { g, inner, body, head: headHit, hg: head, bones: null, wings: null, mats, eyeMat: eye, eyes: [], phase: Math.random() * 10,
-    anim(dt, o) { const t = (o.t || 0) + this.phase; if (o.dead) { head.position.y = 0.2; jaw.rotation.x = 0.6; fl.forEach(s => s.visible = false); trail.visible = false; return; }
-      head.position.y = 1.0 + Math.sin(t * 4) * 0.08; jaw.rotation.x = 0.2 + Math.max(0, Math.sin(t * 9)) * 0.35 + (o.lunge ? 0.4 : 0);
+    anim(dt, o) { const t = (o.t || 0) + this.phase, a = dt > 0 ? 1 - Math.exp(-dt * 7) : 1;
+      if (o.dead) { head.position.y += (0.2 - head.position.y) * a * 1.4; head.rotation.x += (0.5 - head.rotation.x) * a; head.rotation.z += (0.6 - head.rotation.z) * a; jaw.rotation.x += (0.6 - jaw.rotation.x) * a; fl.forEach(s => { s.scale.multiplyScalar(1 - a); if (s.scale.x < 0.03) s.visible = false; }); trail.visible = false; return; }
+      const h = o.hit || 0, sd = o.hitSide || 1;
+      head.position.y = 1.0 + Math.sin(t * 4) * 0.08; head.position.z = -h * 0.15; jaw.rotation.x = 0.2 + Math.max(0, Math.sin(t * 9)) * 0.35 + (o.lunge ? 0.4 : 0) + h * 0.3;
+      head.rotation.set(Math.sin(t * 2.2) * 0.12 - h * 0.4, Math.sin(t * 1.3) * 0.3, Math.sin(t * 3.1) * 0.15 + h * 0.4 * sd);
       fl.forEach((s, i) => { const k = 0.8 + Math.sin(t * 17 + i * 2) * 0.25; s.scale.set(0.6 * k, (0.9 + i * 0.1) * k, 1); }); } };
   return enemyInterface(obj, [bone], setXray);
 }

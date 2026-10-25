@@ -169,64 +169,109 @@ export function armIK(sh, el, target, twist = 0, L1 = 0.29, L2 = 0.26) {
   _q.setFromUnitVectors(_h, _v); if (twist) { _q2.setFromAxisAngle(_v, twist); _q.premultiply(_q2); }
   sh.quaternion.copy(_q); el.rotation.set(-b, 0, 0);
 }
+const ss = (a, b, x) => { x = (x - a) / (b - a); x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); };
+const cl = (x, m) => x > m ? m : x < -m ? -m : x;
+const JN = ['hips', 'spine', 'chest', 'neck', 'head', 'shL', 'shR', 'elL', 'elR', 'haL', 'haR', 'thL', 'thR', 'knL', 'knR', 'ftL', 'ftR'];
+// critically-damped blend from last frame's pose to this frame's target: every state change (attack, crouch, hit, death) eases in
+function blendJ(R, dt, rate) {
+  const J = R.J, st = R.st;
+  if (!st.q) { st.q = {}; for (const n of JN) if (J[n]) st.q[n] = J[n].quaternion.clone(); st.hp = J.hips.position.clone(); return; }
+  const a = dt > 0 ? 1 - Math.exp(-dt * rate) : 0;
+  for (const n of JN) { const b = J[n]; if (!b) continue; const q = st.q[n]; q.slerp(b.quaternion, a); b.quaternion.copy(q); }
+  st.hp.lerp(J.hips.position, a); J.hips.position.copy(st.hp);
+}
+// per-style key poses: W = wind-up (anticipation), S = strike (contact), both as overrides of the arm/body channels
+const KP = {
+  sword: { W: { aR: [-2.75, 0.35, -0.55], eR: -1.5, aL: [-0.6, 0, 0.5], eL: -0.9, tw: 0.45, ln: -0.08 }, S: { aR: [-0.55, -0.45, -0.05], eR: -0.15, aL: [0.25, 0, 0.3], eL: -0.4, tw: -0.5, ln: 0.4, step: 1 } },
+  club: { W: { aR: [-2.9, 0.2, -0.4], eR: -1.6, aL: [-0.5, 0, 0.4], eL: -0.8, tw: 0.35, ln: -0.12 }, S: { aR: [-0.35, -0.2, -0.1], eR: -0.1, aL: [0.3, 0, 0.3], eL: -0.3, tw: -0.35, ln: 0.5, step: 1 } },
+  axe: { W: { aR: [-3.05, 0, -0.15], eR: -1.3, aL: [-2.95, 0, 0.15], eL: -1.3, tw: 0, ln: -0.25 }, S: { aR: [-0.45, 0, -0.08], eR: -0.25, aL: [-0.45, 0, 0.08], eL: -0.25, tw: 0, ln: 0.65, step: 1 } },
+  spear: { W: { aR: [0.35, 0, -0.25], eR: -1.9, wR: 1.2, tw: 0.4, ln: -0.05 }, S: { aR: [-1.5, 0, -0.1], eR: -0.05, wR: 1.5, tw: -0.35, ln: 0.35, step: 1 } },
+  claw: { W: { aR: [-2.6, 0, -0.75], eR: -1.0, aL: [-2.6, 0, 0.75], eL: -1.0, tw: 0, ln: -0.15 }, S: { aR: [-0.35, 0, -0.2], eR: -0.3, aL: [-0.35, 0, 0.2], eL: -0.3, tw: 0, ln: 0.55, step: 1 } },
+  bow: { W: { aL: [-1.45, -0.15, 0.05], eL: -0.03, aR: [-1.35, 0.5, -0.1], eR: -2.1, tw: 0.25, ln: 0.02 }, S: { aL: [-1.45, -0.15, 0.05], eL: -0.03, aR: [-1.1, 0.9, -0.5], eR: -0.6, tw: 0.3, ln: -0.05 } },
+  bolt: { W: { aR: [-2.95, 0.4, -0.5], eR: -0.9, aL: [-1.1, 0, 0.6], eL: -0.3, tw: 0.55, ln: -0.18 }, S: { aR: [-1.1, -0.3, -0.1], eR: -0.05, aL: [-0.2, 0, 0.4], eL: -0.4, tw: -0.45, ln: 0.35 } },
+};
+KP.bident = KP.staff = KP.spear;
+const lv = (x, y, k) => [x[0] + (y[0] - x[0]) * k, x[1] + (y[1] - x[1]) * k, x[2] + (y[2] - x[2]) * k];
 // style decides the idle arm pose and the attack motion
 export function poseHuman(R, dt, o) {
-  const J = R.J, st = R.st, sty = R.style; const t = (o.t || 0) + st.off;
+  const J = R.J, st = R.st, sty = R.style; const t = (o.t || 0) + st.off; dt = dt || 0;
   if (o.dead) {
-    J.shL.rotation.set(-0.4, 0, 1.2); J.shR.rotation.set(-0.4, 0, -1.2); J.elL.rotation.set(-0.3, 0, 0); J.elR.rotation.set(-0.4, 0, 0);
-    J.thL.rotation.set(-0.2, 0, 0.25); J.thR.rotation.set(0.1, 0, -0.2); J.knL.rotation.x = 0.4; J.knR.rotation.x = 0.2;
-    J.chest.rotation.set(0.1, 0, 0); J.head.rotation.set(-0.3, 0.6, 0); J.hips.position.y = st.hy;
-    if (R.extra) R.extra(R, 0, o, t);
+    const dT = o.deadT === undefined ? 9 : o.deadT, sd = o.hitSide || 1;
+    if (dT < 0.2) { // impact: knees give way, head snaps, arms fling
+      J.hips.position.y = st.hy - 0.28; J.hips.rotation.set(0, 0, 0.1 * sd);
+      J.thL.rotation.set(-0.75, 0, 0.1); J.thR.rotation.set(-0.35, 0, -0.1); J.knL.rotation.set(1.4, 0, 0); J.knR.rotation.set(0.9, 0, 0);
+      J.spine.rotation.set(-0.3, 0, 0.15 * sd); J.chest.rotation.set(-0.35, 0.25 * sd, 0.2 * sd); J.head.rotation.set(-0.6, 0.3 * sd, 0.2 * sd);
+      J.shL.rotation.set(-1.3, 0, 1.0); J.shR.rotation.set(-1.1, 0, -1.0); J.elL.rotation.set(-0.6, 0, 0); J.elR.rotation.set(-0.5, 0, 0);
+    } else { // limp sprawl, with a few dying twitches
+      const tw = dT < 1.6 ? Math.sin(t * 31) * 0.18 * Math.max(0, 1 - (dT - 0.4) / 1.2) * (dT > 0.5 ? 1 : 0) : 0;
+      J.hips.position.y = st.hy; J.hips.rotation.set(0, 0, 0);
+      J.shL.rotation.set(-0.5 - 0.3 * sd, 0, 1.25); J.shR.rotation.set(-0.5 + 0.3 * sd, 0, -1.25); J.elL.rotation.set(-0.35, 0, 0); J.elR.rotation.set(-0.5, 0, 0);
+      J.thL.rotation.set(-0.08, 0, 0.3); J.thR.rotation.set(0.04, 0, -0.24); J.knL.rotation.set(0.3 + tw, 0, 0); J.knR.rotation.set(0.12 - tw * 0.7, 0, 0);
+      J.spine.rotation.set(0, 0, 0); J.chest.rotation.set(0.1, 0, 0.08 * sd); J.head.rotation.set(-0.3, 0.7 * sd, 0);
+    }
+    J.ftL.rotation.set(0.4, 0, 0); J.ftR.rotation.set(0.3, 0, 0); J.haL.rotation.set(0.3, 0, 0); J.haR.rotation.set(0.5, 0, 0);
+    blendJ(R, dt, dT < 0.2 ? 26 : 9);
+    if (R.extra) R.extra(R, dt, o, t);
     return;
   }
-  const sp = o.speed || 0, run = Math.min(1, sp / 5);
+  const sp = o.speed || 0, run = Math.min(1, sp / 5), idle = 1 - Math.min(1, sp / 1.2);
   st.ph += dt * (2.2 + sp * 1.25);
   const s = Math.sin(st.ph), c = Math.cos(st.ph);
   const amp = 0.8 * run;
   // legs
   let thL = -s * amp, thR = s * amp, knL = Math.max(0, -c) * 1.25 * run + 0.06, knR = Math.max(0, c) * 1.25 * run + 0.06;
-  let hipY = st.hy + Math.abs(c) * 0.045 * run - 0.02 * run, lean = 0.12 * run;
-  // arms (idle pose by style + walk swing)
-  let aL = [s * 0.5 * run, 0, 0.13], aR = [-s * 0.5 * run, 0, -0.13], eL = -0.22 - run * 0.4, eR = -0.22 - run * 0.4, wL = 0, wR = 0;
+  let hipY = st.hy + Math.abs(c) * 0.045 * run - 0.02 * run, lean = 0.12 * run, twist = 0, roll = c * 0.05 * run;
+  // idle: slow weight shift onto one leg + breathing
+  const ws = Math.sin(t * 0.55);
+  knL += Math.max(0, ws) * 0.16 * idle; knR += Math.max(0, -ws) * 0.16 * idle; roll += ws * 0.045 * idle; hipY -= Math.abs(ws) * 0.012 * idle;
+  // arms (idle pose by style + walk swing, elbows bend on the forward swing)
+  let aL = [s * 0.5 * run, 0, 0.13], aR = [-s * 0.5 * run, 0, -0.13], eL = -0.22 - run * 0.3 - Math.max(0, -s) * 0.35 * run, eR = -0.22 - run * 0.3 - Math.max(0, s) * 0.35 * run, wL = 0, wR = 0;
   const br = Math.sin(t * 1.7) * 0.03;
   switch (sty) {
     case 'sword': aR = [-0.25 - s * 0.15 * run, 0, -0.18]; eR = -1.15; break;
     case 'spear': case 'bident': case 'staff': aR = [-0.05 - s * 0.1 * run, 0, -0.22]; eR = -1.45; break;
-    case 'bow': aL = [-1.4, -0.15, 0.05]; eL = -0.05; aR = [-1.3, 0.45, -0.1]; eR = -1.95; lean = 0.05; break;
+    case 'bow': aL = [-0.9, -0.1, 0.12]; eL = -0.35; aR = [-0.75, 0.3, -0.12]; eR = -1.2; lean = 0.06; break;
     case 'gun': aR = [-0.75, 0.25, -0.35]; eR = -1.25; aL = [-1.0, -0.55, 0.45]; eL = -0.85; break;
     case 'claw': aL = [-0.85 + s * 0.2 * run, 0, 0.35]; eL = -0.7; aR = [-0.85 - s * 0.2 * run, 0, -0.35]; eR = -0.7; lean += 0.15; break;
     case 'axe': aR = [-0.5, 0, -0.25]; eR = -1.2; aL = [-0.7, 0, 0.3]; eL = -1.1; break;
     case 'bolt': aR = [-2.7, 0, -0.35]; eR = -0.35; aL = [-0.5, 0, 0.35]; eL = -0.6; break;
     case 'club': aR = [-0.3 - s * 0.15 * run, 0, -0.18]; eR = -1.0; break;
   }
-  // attack (o.lunge: 0..1 progress of the strike)
-  const p = o.lunge || 0;
-  if (p > 0) {
-    const a = Math.sin(p * PI);
-    switch (sty) {
-      case 'sword': case 'club': aR = [lerp(-2.9, -0.7, p), 0, -0.2]; eR = lerp(-1.0, -0.15, p); lean += a * 0.35; break;
-      case 'spear': case 'bident': case 'staff': aR = [lerp(-0.4, -1.45, a), 0, -0.15]; eR = lerp(-1.45, -0.05, a); wR = 1.45 * a; lean += a * 0.25; break;
-      case 'bow': eR = -1.95 + a * 1.3; break;
-      case 'claw': aL = [lerp(-2.6, -0.4, p), 0, 0.3]; aR = [lerp(-2.6, -0.4, p), 0, -0.3]; eL = eR = -0.3; lean += a * 0.4; break;
-      case 'axe': aR = [lerp(-3.0, -0.6, p), 0, -0.1]; aL = [lerp(-2.8, -0.6, p), 0, 0.1]; eR = eL = -0.4; lean += a * 0.45; break;
-      case 'bolt': aR = [lerp(-2.9, -1.4, a), 0, -0.2]; eR = -0.1; break;
-      case 'gun': aR[0] -= a * 0.2; break;
+  if (sty !== 'bow' && sty !== 'gun') { aL[2] += br * 0.6; aR[2] -= br * 0.6; }
+  // attack: wind-up (telegraph from the AI or the first frames of the strike) -> strike -> follow-through -> recover
+  const p = o.lunge || 0, K = KP[sty];
+  let blendRate = 20;
+  if (K) {
+    let W = o.wind || 0, S = 0;
+    if (p > 0) { W = Math.max(W * (1 - ss(0, 0.12, p)), 1 - ss(0.02, 0.16, p)); S = ss(0.04, 0.24, p) * (1 - ss(0.5, 1, p)); blendRate = 30; }
+    for (const [P, k] of [[K.W, W], [K.S, S]]) {
+      if (k <= 0) continue;
+      if (P.aR) aR = lv(aR, P.aR, k); if (P.aL) aL = lv(aL, P.aL, k);
+      if (P.eR !== undefined) eR += (P.eR - eR) * k; if (P.eL !== undefined) eL += (P.eL - eL) * k; if (P.wR !== undefined) wR += (P.wR - wR) * k;
+      twist += (P.tw || 0) * k; lean += (P.ln || 0) * k;
+      if (P.step) { thL -= 0.55 * k; knL += 0.35 * k; thR += 0.35 * k; knR += 0.2 * k; hipY -= 0.07 * k; }
     }
-  }
+    if (W > 0 && sty !== 'bow') { knL += 0.2 * W; knR += 0.2 * W; hipY -= 0.04 * W; }
+  } else if (p > 0 && sty === 'gun') aR[0] -= Math.sin(p * PI) * 0.2;
   if (o.crouch) { hipY -= 0.18; thL = thR = -0.8; knL = knR = 1.4; lean += 0.45; }
   if (o.air) { thL = -1.1; thR = -0.5; knL = 1.6; knR = 1.0; }
-  if (o.fly) { thL = 0.15 + Math.sin(t * 3) * 0.1; thR = 0.25 + Math.sin(t * 3 + 1) * 0.1; knL = 0.5; knR = 0.7; hipY = st.hy; }
+  if (o.fly) { thL = 0.15 + Math.sin(t * 3) * 0.1; thR = 0.25 + Math.sin(t * 3 + 1) * 0.1; knL = 0.5; knR = 0.7; hipY = st.hy; lean = 0.25 * run; }
+  // lean into turns
+  const tn = cl((o.turn || 0), 6), bank = cl(-tn * 0.05, 0.22) * (0.3 + run);
+  let hx = -lean * 0.6 + Math.sin(t * 0.7) * 0.05, hy = Math.sin(t * 0.5) * 0.18 * idle + cl(tn * 0.08, 0.45) - twist * 0.6 - s * 0.06 * run, hz = -roll * 0.6;
   if (o.stagger) {
-    const w = Math.sin(t * 9) * 0.12; lean = 0.45 + w; aL = [0.2, 0, 0.35]; aR = [0.15, 0, -0.35]; eL = eR = -0.1; knL = knR = 0.5; hipY -= 0.12;
-    J.head.rotation.set(0.6, Math.sin(t * 5) * 0.4, w);
-  } else J.head.rotation.set(-lean * 0.6 + Math.sin(t * 0.7) * 0.05, Math.sin(t * 0.5) * 0.15, 0);
+    const w = Math.sin(t * 9) * 0.12; lean = 0.45 + w; aL = [0.2, 0, 0.35]; aR = [0.15, 0, -0.35]; eL = eR = -0.1; knL = knR = 0.5; hipY -= 0.12; twist = 0;
+    hx = 0.6; hy = Math.sin(t * 5) * 0.4; hz = w;
+  }
+  J.head.rotation.set(hx, hy, hz);
   J.thL.rotation.set(thL, 0, 0.03); J.thR.rotation.set(thR, 0, -0.03); J.knL.rotation.x = knL; J.knR.rotation.x = knR;
   J.ftL.rotation.x = -knL * 0.35 - thL * 0.3; J.ftR.rotation.x = -knR * 0.35 - thR * 0.3;
-  J.hips.position.y = hipY; J.hips.rotation.y = s * 0.08 * run;
-  J.spine.rotation.set(lean * 0.5, -s * 0.08 * run, 0); J.chest.rotation.set(lean * 0.5 + br, -s * 0.06 * run, 0);
+  J.hips.position.y = hipY; J.hips.rotation.set(0, s * 0.1 * run + twist * 0.3, roll + bank);
+  J.spine.rotation.set(lean * 0.5, -s * 0.08 * run + twist * 0.35, -roll * 0.5); J.chest.rotation.set(lean * 0.5 + br, -s * 0.07 * run + twist * 0.45 + cl(tn * 0.04, 0.25), -roll * 0.4 - bank * 0.5);
   J.shL.rotation.set(aL[0], aL[1], aL[2]); J.shR.rotation.set(aR[0], aR[1], aR[2]);
   J.elL.rotation.set(eL, 0, 0); J.elR.rotation.set(eR, 0, 0); J.haL.rotation.set(wL, 0, 0); J.haR.rotation.set(wR, 0, 0);
-  if (o.hit > 0.01 && !o.stagger) { const h = o.hit, sd = o.hitSide || 1; J.chest.rotation.x -= 0.4 * h; J.spine.rotation.x -= 0.15 * h; J.chest.rotation.z += 0.18 * h * sd; J.head.rotation.x -= 0.35 * h; J.head.rotation.z += 0.2 * h * sd; J.shL.rotation.z += 0.3 * h; J.shR.rotation.z -= 0.3 * h; J.hips.position.y -= 0.03 * h; }
+  if (o.hit > 0.01 && !o.stagger) { const h = o.hit, sd = o.hitSide || 1; J.chest.rotation.x -= 0.45 * h; J.spine.rotation.x -= 0.18 * h; J.chest.rotation.z += 0.22 * h * sd; J.chest.rotation.y += 0.25 * h * sd; J.head.rotation.x -= 0.4 * h; J.head.rotation.z += 0.25 * h * sd; J.shL.rotation.z += 0.35 * h; J.shR.rotation.z -= 0.35 * h; J.hips.position.y -= 0.04 * h; J.knL.rotation.x += 0.25 * h; J.knR.rotation.x += 0.25 * h; blendRate = 40; }
   if (R.ik && !o.stagger) { const k = (o.aim || 0); armIK(J.shR, J.elR, R.ik.R, -0.5); armIK(J.shL, J.elL, R.ik.L, 0.7); J.haR.rotation.set(0.3, 0, 0); J.haL.rotation.set(0.2, 0, 0); J.chest.rotation.x -= k * 0.25; }
+  blendJ(R, dt, blendRate);
   if (R.extra) R.extra(R, dt, o, t);
 }

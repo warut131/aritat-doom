@@ -298,25 +298,45 @@ function worldRest(bones, name) {
 // o: {speed, st, lunge, stagger, air, dead, fly, t, crouch, look}
 const _q = new THREE.Quaternion(), _e = new THREE.Euler();
 function rot(b, x, y, z) { b.rotation.set(x, y, z); }
+const ss = (a, b, x) => { x = (x - a) / (b - a); x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); };
+const cl = (x, m) => x > m ? m : x < -m ? -m : x;
+// ease every bone from last frame's pose toward this frame's target (smooth state changes)
+function blendBones(self, dt, rate) {
+  const B = self.bones;
+  if (!self._bq) { self._bq = {}; for (const k in B) self._bq[k] = [B[k].quaternion.clone(), B[k].position.clone()]; return; }
+  const a = dt > 0 ? 1 - Math.exp(-dt * rate) : 0;
+  for (const k in B) { const b = B[k], m = self._bq[k]; m[0].slerp(b.quaternion, a); b.quaternion.copy(m[0]); m[1].lerp(b.position, a); b.position.copy(m[1]); }
+}
 function animCat(dt, o) {
   const B = this.bones, s = Math.max(0.5, o.scale || 1);
-  const sp = o.speed || 0;
+  const sp = o.speed || 0; dt = dt || 0;
+  const t = o.t || 0;
+  // reset
+  for (const k in B) { const b = B[k]; b.rotation.set(0, 0, 0); b.position.copy(b.userData.rest); }
+  if (o.dead) {
+    const dT = o.deadT === undefined ? 9 : o.deadT;
+    if (dT < 0.16) { // hit: legs buckle, head thrown back
+      B.root.position.y -= 0.1; rot(B.neck, -0.5, 0, 0.2); rot(B.head, -0.4, 0, 0.3); rot(B.chest, -0.25, 0, 0.15); rot(B.hips, 0.2, 0, 0);
+      for (const sd of ['L', 'R']) { rot(B['fUp' + sd], 0.4, 0, 0); rot(B['fLo' + sd], 0.9, 0, 0); rot(B['bUp' + sd], -0.7, 0, 0); rot(B['bLo' + sd], 1.0, 0, 0); }
+      rot(B.earL, -0.8, 0, -0.4); rot(B.earR, -0.8, 0, 0.4);
+    } else { // limp on the side, legs out; a few dying kicks; tail flops
+      const kick = dT < 1.8 ? Math.max(0, 1 - (dT - 0.3) / 1.5) : 0, kk = Math.sin(t * 24) * kick;
+      rot(B.neck, 0.5, 0, 0.3); rot(B.head, 0.3, 0, 0.2); rot(B.earL, 0.6, 0, 0); rot(B.earR, 0.5, 0, 0);
+      for (const sd of ['L', 'R']) { const k = sd === 'L' ? 1 : -1; rot(B['fUp' + sd], -0.5 + kk * 0.3 * k, 0, 0.25 * k); rot(B['fLo' + sd], 0.15, 0, 0); rot(B['bUp' + sd], 0.6 - kk * 0.4, 0, 0.25 * k); rot(B['bLo' + sd], 0.3 + kk * 0.25, 0, 0); }
+      for (let i = 0; i < 5; i++) rot(B['tail' + i], i === 0 ? 1.2 : 0.15, Math.sin(t * 6 - i) * 0.25 * kick, 0);
+    }
+    blendBones(this, dt, dT < 0.16 ? 28 : 10);
+    if (this.wings) this.wings.forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * 0.3; w.rotation.y = (i ? 1 : -1) * 0.9; });
+    return;
+  }
   // gait: 0 = walk, 1 = gallop
   const targetGait = THREE.MathUtils.clamp((sp / s - 3.5) / 4, 0, 1);
   this.gait += (targetGait - this.gait) * Math.min(1, dt * 4);
   const gait = this.gait;
   const freq = (0.9 + sp / s * 0.42) * (1 - gait * 0.15);
   this.phase += dt * freq * (sp > 0.2 || o.fly ? 1 : 0.25);
-  const ph = this.phase * TAU, t = o.t || 0;
-  const moving = THREE.MathUtils.clamp(sp / s / 2, 0, 1);
-  // reset
-  for (const k in B) { const b = B[k]; b.rotation.set(0, 0, 0); b.position.copy(b.userData.rest); }
-  if (o.dead) { // limp, legs out, tail flat
-    rot(B.neck, 0.5, 0, 0.3); rot(B.head, 0.3, 0, 0.2);
-    for (const sd of ['L', 'R']) { const k = sd === 'L' ? 1 : -1; rot(B['fUp' + sd], -0.5, 0, 0.25 * k); rot(B['bUp' + sd], 0.6, 0, 0.25 * k); rot(B['earL'], 0.6, 0, 0); }
-    for (let i = 0; i < 5; i++) rot(B['tail' + i], i === 0 ? 1.2 : 0.15, 0, 0);
-    return;
-  }
+  const ph = this.phase * TAU;
+  const moving = THREE.MathUtils.clamp(sp / s / 2, 0, 1), idle = 1 - moving;
   const walkOff = { fUpL: 0.5, fUpR: 0.0, bUpL: 0.75, bUpR: 0.25 };
   const galOff = { fUpL: 0.55, fUpR: 0.65, bUpL: 0.0, bUpR: 0.1 };
   const amp = 0.55 * moving + 0.25 * gait * moving;
@@ -328,54 +348,82 @@ function animCat(dt, o) {
     if (front) {
       rot(B[leg], -swing * amp * 0.9, 0, 0);
       rot(B['fLo' + side], lift * amp * 1.3, 0, 0);
-      rot(B['fPaw' + side], -lift * amp * 0.8, 0, 0);
+      rot(B['fPaw' + side], -lift * amp * 0.8 + Math.max(0, -swing) * amp * 0.4, 0, 0);
     } else {
       rot(B[leg], -swing * amp * 0.9, 0, 0);
       rot(B['bMid' + side], -lift * amp * 0.5, 0, 0);
       rot(B['bLo' + side], lift * amp * 1.0, 0, 0);
-      rot(B['bPaw' + side], -lift * amp * 0.6, 0, 0);
+      rot(B['bPaw' + side], -lift * amp * 0.6 + Math.max(0, swing) * amp * 0.3, 0, 0);
     }
   }
-  // spine flex (gallop) + bounce
+  // spine flex (gallop) + bounce + breathing
+  const br = Math.sin(t * 2.1 + this.phase) * 0.025 * (0.4 + idle);
   const flex = Math.sin(ph + 0.3) * 0.22 * gait * moving;
-  rot(B.hips, -flex, 0, Math.sin(ph) * 0.05 * moving * (1 - gait));
-  rot(B.chest, flex * 1.2, 0, -Math.sin(ph) * 0.05 * moving * (1 - gait));
-  B.root.position.y = Math.abs(Math.sin(ph)) * 0.035 * moving * (0.5 + gait);
-  // head steadies + aggressive low carriage when running
-  rot(B.neck, 0.18 * gait * moving - flex * 0.6, 0, 0);
-  rot(B.head, -0.12 * gait * moving + Math.sin(t * 1.3) * 0.05, Math.sin(t * 0.7 + this.phase) * 0.12 * (1 - moving), 0);
-  // ears back when charging / attacking
-  const angry = Math.max(gait * moving, o.lunge || 0, o.crouch ? 1 : 0);
-  rot(B.earL, -0.7 * angry, 0, -0.4 * angry); rot(B.earR, -0.7 * angry, 0, 0.4 * angry);
-  // tail: travelling wave, raised when running
-  for (let i = 0; i < 5; i++) rot(B['tail' + i], (i === 0 ? -0.35 * gait * moving + 0.15 : 0.06) + Math.sin(t * 2.2 - i * 0.7) * 0.05, Math.sin(t * (1.6 + moving * 3) - i * 0.8) * (0.18 + 0.1 * i / 4), 0);
-  // attack swipe/lunge
-  const L = o.lunge || 0;
-  if (L > 0) {
-    const k = Math.sin(L * Math.PI);
-    rot(B.chest, B.chest.rotation.x + 0.25 * k, 0, 0); rot(B.neck, B.neck.rotation.x - 0.35 * k, 0, 0); rot(B.head, B.head.rotation.x - 0.2 * k, 0, 0);
-    rot(B.fUpR, -1.6 * k, 0, -0.25 * k); rot(B.fLoR, -0.6 * k, 0, 0); rot(B.fPawR, -0.5 * k, 0, 0);
-    B.root.position.z = 0.12 * k;
+  const tn = cl(o.turn || 0, 6), bank = cl(-tn * 0.045, 0.2) * moving;
+  rot(B.hips, -flex, cl(-tn * 0.03, 0.15), Math.sin(ph) * 0.05 * moving * (1 - gait) + bank);
+  rot(B.chest, flex * 1.2 + br, cl(tn * 0.05, 0.25), -Math.sin(ph) * 0.05 * moving * (1 - gait) + bank * 0.5);
+  B.root.position.y += Math.abs(Math.sin(ph)) * 0.035 * moving * (0.5 + gait) + br * 0.1;
+  // head steadies + aggressive low carriage when running; idle: glance around, little head tilts
+  const look = Math.sin(t * 0.37 + this.phase) * 0.45 + Math.sin(t * 1.1) * 0.12;
+  rot(B.neck, 0.18 * gait * moving - flex * 0.6 - br, cl(tn * 0.06, 0.3) + look * 0.4 * idle, 0);
+  rot(B.head, -0.12 * gait * moving + Math.sin(t * 1.3) * 0.05, look * 0.5 * idle + cl(tn * 0.06, 0.3), Math.sin(t * 0.8 + 1) * 0.12 * idle);
+  // ears: back when charging / attacking, occasional twitch when idle
+  const L = o.lunge || 0, W = o.wind || 0;
+  const angry = Math.max(gait * moving, L > 0 ? 1 : 0, W, o.crouch ? 1 : 0);
+  const tw = Math.max(0, Math.sin(t * 3.1 + this.phase * 2) - 0.92) * 6 * idle;
+  rot(B.earL, -0.7 * angry - tw * 0.3, 0, -0.4 * angry); rot(B.earR, -0.7 * angry, 0, 0.4 * angry + tw * 0.2);
+  // tail: travelling wave, raised when running, lashing when angry
+  const lash = 1 + angry * 1.5;
+  for (let i = 0; i < 5; i++) rot(B['tail' + i], (i === 0 ? -0.35 * gait * moving + 0.15 - angry * 0.25 : 0.06 + (idle * (i > 2 ? -0.12 : 0))) + Math.sin(t * 2.2 - i * 0.7) * 0.05, Math.sin(t * (1.6 + moving * 3 + angry * 4) - i * 0.8) * (0.18 + 0.1 * i / 4) * lash, 0);
+  // attack: wind-up (rear back, paw cocked) -> swipe/bite with the body thrown forward -> recover; alternating paws
+  if (L > 0 && !this._atk) this.paw = this.paw === 'R' ? 'L' : 'R';
+  this._atk = L > 0;
+  const pw = this.paw || 'R', pk = pw === 'R' ? -1 : 1;
+  let wk = W, sk = 0;
+  if (L > 0) { wk = Math.max(W * (1 - ss(0, 0.15, L)), 1 - ss(0.02, 0.18, L)); sk = ss(0.06, 0.3, L) * (1 - ss(0.55, 1, L)); }
+  if (wk > 0) {
+    B.root.position.y -= 0.05 * wk; B.root.position.z -= 0.06 * wk;
+    rot(B.hips, B.hips.rotation.x + 0.15 * wk, B.hips.rotation.y, B.hips.rotation.z); rot(B.chest, B.chest.rotation.x - 0.3 * wk, B.chest.rotation.y - pk * 0.15 * wk, B.chest.rotation.z);
+    rot(B.neck, B.neck.rotation.x - 0.25 * wk, B.neck.rotation.y, 0); rot(B.head, B.head.rotation.x + 0.15 * wk, B.head.rotation.y, 0);
+    rot(B['fUp' + pw], -1.9 * wk, 0, pk * 0.35 * wk); rot(B['fLo' + pw], 1.2 * wk, 0, 0); rot(B['fPaw' + pw], -0.6 * wk, 0, 0);
+    for (const sd of ['L', 'R']) { rot(B['bUp' + sd], -0.45 * wk, 0, 0); rot(B['bLo' + sd], 0.8 * wk, 0, 0); }
+  }
+  if (sk > 0) {
+    B.root.position.z += 0.16 * sk; B.root.position.y += 0.03 * sk;
+    rot(B.chest, B.chest.rotation.x + 0.3 * sk, B.chest.rotation.y + pk * 0.25 * sk, 0); rot(B.neck, B.neck.rotation.x - 0.4 * sk, 0, 0); rot(B.head, B.head.rotation.x - 0.25 * sk, 0, -pk * 0.2 * sk);
+    rot(B['fUp' + pw], -0.9 * sk + 0.5 * (1 - sk) * wk, 0, -pk * 0.25 * sk); rot(B['fLo' + pw], -0.4 * sk, 0, 0); rot(B['fPaw' + pw], -0.7 * sk, 0, 0);
+    for (const sd of ['L', 'R']) { rot(B['bUp' + sd], 0.4 * sk, 0, 0); rot(B['bLo' + sd], 0.2 * sk, 0, 0); }
   }
   // crouch before leap (black cat) / wind-up (persian)
   if (o.crouch) {
-    B.root.position.y = -0.12; rot(B.hips, -0.15, 0, 0);
+    B.root.position.y = -0.12 + Math.sin(t * 20) * 0.006; rot(B.hips, -0.15, Math.sin(t * 9) * 0.12, 0);
     for (const sd of ['L', 'R']) { rot(B['fUp' + sd], -0.6, 0, 0); rot(B['fLo' + sd], 1.1, 0, 0); rot(B['bUp' + sd], -0.6, 0, 0); rot(B['bMid' + sd], -0.6, 0, 0); rot(B['bLo' + sd], 1.0, 0, 0); }
     rot(B.neck, -0.3, 0, 0);
   }
   if (o.air) { // leap: stretch out
-    for (const sd of ['L', 'R']) { rot(B['fUp' + sd], -1.1, 0, 0); rot(B['fLo' + sd], -0.3, 0, 0); rot(B['bUp' + sd], 0.9, 0, 0); rot(B['bLo' + sd], 0.4, 0, 0); }
+    for (const sd of ['L', 'R']) { rot(B['fUp' + sd], -1.1, 0, 0); rot(B['fLo' + sd], -0.3, 0, 0); rot(B['fPaw' + sd], -0.4, 0, 0); rot(B['bUp' + sd], 0.9, 0, 0); rot(B['bLo' + sd], 0.4, 0, 0); }
     rot(B.hips, 0.12, 0, 0); rot(B.neck, -0.2, 0, 0);
+    for (let i = 0; i < 5; i++) rot(B['tail' + i], i === 0 ? 0.1 : -0.05, 0, 0);
   }
-  if (o.fly) { // tuck legs, flap
+  if (o.fly) { // tuck legs, flap (wing beat drives a body bob)
     for (const sd of ['L', 'R']) { rot(B['fUp' + sd], -0.7, 0, 0); rot(B['fLo' + sd], 1.4, 0, 0); rot(B['bUp' + sd], 0.8, 0, 0); rot(B['bLo' + sd], 0.9, 0, 0); }
-    if (this.wings) this.wings.forEach((w, i) => { const f = Math.sin(t * 13 + this.phase); w.rotation.z = (i ? -1 : 1) * (0.15 + f * 0.85); w.rotation.y = (i ? 1 : -1) * 0.2; });
-    B.root.position.y = Math.sin(t * 13 + this.phase + 1) * 0.04;
+    const f = Math.sin(t * 13 + this.phase);
+    if (this.wings) this.wings.forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * (0.15 + f * 0.85); w.rotation.y = (i ? 1 : -1) * (0.2 - f * 0.15); });
+    B.root.position.y = Math.sin(t * 13 + this.phase + 1) * 0.04; rot(B.chest, B.chest.rotation.x - f * 0.06, 0, 0);
   } else if (this.wings) this.wings.forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * 1.1; w.rotation.y = (i ? 1 : -1) * 0.6; });
   if (o.stagger) { // dazed wobble, head droop
     rot(B.neck, 0.5, 0, Math.sin(t * 9) * 0.25); rot(B.head, 0.35, Math.sin(t * 7) * 0.3, 0);
     B.root.rotation.z = Math.sin(t * 5) * 0.12;
   }
+  // hit reaction: flinch away from the shot
+  let rate = L > 0 ? 30 : 18;
+  if (o.hit > 0.01 && !o.stagger) {
+    const h = o.hit, sd = o.hitSide || 1;
+    B.root.position.z -= 0.06 * h; B.root.position.y -= 0.03 * h; B.root.rotation.z += 0.12 * h * sd;
+    B.chest.rotation.x -= 0.3 * h; B.chest.rotation.y += 0.3 * h * sd; B.neck.rotation.x -= 0.35 * h; B.head.rotation.z += 0.3 * h * sd; B.head.rotation.x -= 0.2 * h;
+    B.earL.rotation.x -= 0.8 * h; B.earR.rotation.x -= 0.8 * h; rate = 40;
+  }
+  blendBones(this, dt, rate);
 }
 
 // see-through highlight: an additive copy of every visible mesh, drawn on top of the world

@@ -62,12 +62,23 @@ export function buildRat(C) {
   const obj = { g, inner, body, head: headHit, hg: head, bones: null, wings: null, mats, eyeMat, eyes: [], phase: Math.random() * 10,
     anim(dt, o) {
       const sp = o.speed || 0; this.phase += dt * (6 + sp * 2.2); const ph = this.phase, t = o.t || 0;
-      if (o.dead) { root.rotation.z = Math.PI * 0.95; root.position.y = 0.3; legs.forEach((l, i) => l.rotation.x = Math.sin(t * 20 + i) * 0.4); return; }
-      root.rotation.z = 0; root.position.y = Math.abs(Math.sin(ph)) * 0.03 * Math.min(1, sp / 3);
+      const a = dt > 0 ? 1 - Math.exp(-dt * 14) : 1;
+      if (o.dead) { // flips belly-up, legs kick and slowly go still
+        const dT = o.deadT === undefined ? 9 : o.deadT, kick = Math.max(0, 1 - dT / 1.6);
+        root.rotation.z += (Math.PI * 0.95 - root.rotation.z) * a; root.position.y += (0.3 - root.position.y) * a; root.position.z *= 1 - a;
+        legs.forEach((l, i) => l.rotation.x = Math.sin(t * 22 + i * 1.7) * 0.5 * kick + 0.3);
+        tail.forEach((s, i) => { s.rotation.y *= 1 - a * 0.3; s.rotation.x = 0.1; }); head.rotation.x += (0.3 - head.rotation.x) * a; return;
+      }
+      const mv = Math.min(1, sp / 2), idle = 1 - mv;
+      root.rotation.z = Math.sin(ph) * 0.06 * mv + (o.hit || 0) * 0.25 * (o.hitSide || 1); root.position.y = Math.abs(Math.sin(ph)) * 0.03 * Math.min(1, sp / 3);
+      root.rotation.x = (o.hit || 0) * -0.2 + Math.sin(ph * 2) * 0.03 * mv;
       legs.forEach((l, i) => { l.rotation.x = Math.sin(ph + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI * 0.5 : 0)) * 0.9 * Math.min(1, sp / 2 + 0.15); });
-      tail.forEach((s, i) => { s.rotation.y = Math.sin(t * 9 - i * 0.9) * 0.35; s.rotation.x = i === 0 ? -0.2 : 0.06; });
-      head.rotation.x = (o.lunge || 0) * -0.5 + Math.sin(t * 13) * 0.05; head.rotation.y = Math.sin(t * 7) * 0.1;
-      root.position.z = (o.lunge ? Math.sin(o.lunge * Math.PI) : 0) * 0.15;
+      tail.forEach((s, i) => { s.rotation.y = Math.sin(t * (6 + mv * 5) - i * 0.9) * (0.25 + mv * 0.15); s.rotation.x = i === 0 ? -0.2 : 0.06; });
+      // sniffing when idle; bite = rear back then snap forward
+      const L = o.lunge || 0, wk = L > 0 ? 1 - Math.min(1, L / 0.2) : 0, sk = L > 0 ? Math.sin(Math.min(1, L * 1.3) * Math.PI) : 0;
+      const tx = -0.35 * wk - 0.6 * sk * (1 - wk) + Math.sin(t * 13) * 0.05 + Math.sin(t * 17) * 0.06 * idle + (o.hit || 0) * -0.4;
+      head.rotation.x += (tx - head.rotation.x) * Math.min(1, a * 1.8); head.rotation.y = Math.sin(t * 2.3 + this.phase) * 0.35 * idle + Math.sin(t * 7) * 0.1;
+      root.position.z += ((-0.05 * wk + sk * 0.18 - (o.hit || 0) * 0.06) - root.position.z) * Math.min(1, a * 1.8);
     } };
   return common(obj, [fur, fur2], [new THREE.Color(C.body), new THREE.Color(C.dark)]);
 }
@@ -122,9 +133,15 @@ export function buildKrasue(C) {
   const obj = { g, inner, body, head: headHit, hg: head, bones: null, wings: null, mats, eyeMat, eyes: [], phase: Math.random() * 10,
     anim(dt, o) {
       const t = (o.t || 0) + this.phase;
-      if (o.dead) { root.position.y = 0.25; head.rotation.set(0.2, 0, 1.3); organs.rotation.set(0, 0, -1.2); aura.material.opacity = 0; return; }
-      root.position.y = 1.15 + Math.sin(t * 2.1) * 0.08;
-      head.rotation.z = Math.sin(t * 1.3) * 0.12; head.rotation.x = (o.lunge ? -0.4 * Math.sin(o.lunge * Math.PI) : 0) + Math.sin(t * 0.9) * 0.06;
+      const a = dt > 0 ? 1 - Math.exp(-dt * 6) : 1;
+      if (o.dead) { // drops out of the air, organs flop, aura gutters out
+        root.position.y += (0.25 - root.position.y) * a * 1.5; head.rotation.x += (0.2 - head.rotation.x) * a; head.rotation.z += (1.3 - head.rotation.z) * a;
+        organs.rotation.x *= 1 - a; organs.rotation.z += (-1.2 - organs.rotation.z) * a; aura.material.opacity *= 1 - a; return;
+      }
+      const L = o.lunge || 0, h = o.hit || 0, sd = o.hitSide || 1;
+      root.position.y = 1.15 + Math.sin(t * 2.1) * 0.08 + h * 0.06; root.position.z = (L ? Math.sin(L * Math.PI) * 0.35 : 0) - h * 0.12;
+      head.rotation.z = Math.sin(t * 1.3) * 0.12 + h * 0.35 * sd; head.rotation.x = (L ? -0.4 * Math.sin(L * Math.PI) : 0) + Math.sin(t * 0.9) * 0.06 - h * 0.35;
+      head.rotation.y = Math.sin(t * 0.6) * 0.25;
       const sp = Math.min(1, (o.speed || 0) / 8);
       organs.rotation.x = 0.25 * sp + Math.sin(t * 2.6) * 0.12; organs.rotation.z = Math.sin(t * 1.9) * 0.1;
       for (const s of strands) { s.s.rotation.x = 0.15 * sp + Math.sin(t * 2.4 + s.ph) * 0.12; s.s.rotation.z = Math.sin(t * 1.7 + s.ph) * 0.1; }
