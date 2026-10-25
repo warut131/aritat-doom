@@ -183,7 +183,7 @@ button:focus-visible{outline:3px solid var(--ember);outline-offset:2px}
 #adminMsg,.amsg{flex-basis:100%;font-size:.85em}
 .acctb{font:700 14px var(--font-ui);color:inherit;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 12px;margin-right:10px;cursor:pointer}
 .acctb:hover{background:rgba(255,255,255,.16)}
-.acctp{max-width:420px}.acctp .field{display:flex;flex-direction:column;gap:4px;margin:10px 0}
+.acctp{max-width:420px}.gate{color:#ffb020;font-weight:700}#acct.forced{z-index:60}.acctp .field{display:flex;flex-direction:column;gap:4px;margin:10px 0}
 .acctp .field input{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.35);color:inherit;font:inherit}
 label.sens{display:flex;gap:10px;align-items:center;flex:1;min-width:220px}
 label.sens input{flex:1;min-width:0;accent-color:var(--blood)}
@@ -535,6 +535,7 @@ body.touch #magNum{font-size:40px}
 <div id="acct" class="overlay" hidden>
   <div class="panel acctp">
     <h2>บัญชีผู้เล่น</h2>
+    <p class="gate" id="acctGate" hidden>ต้องสมัครหรือเข้าสู่ระบบก่อนเล่น</p>
     <div id="acctIn">
       <p class="hint">สมัครแล้วเซฟเกมจะเก็บขึ้นคลาวด์ เข้าเล่นต่อได้ทุกเครื่อง ไม่ต้องใช้อีเมล</p>
       <label class="field" for="acctUser">ชื่อผู้ใช้ <input id="acctUser" maxlength="14" autocomplete="username"></label>

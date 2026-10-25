@@ -1377,7 +1377,7 @@ function renderShop(){$('#shopCoins').textContent='🪙 '+save.coins;$('#menuCoi
   d.innerHTML=`<span class="ic">${s.icon}</span><span class="nm">${s.name}</span><span class="ds">${s.desc}</span><span class="pips">${Array.from({length:s.max},(_,i)=>`<i class="${i<l?'on':''}"></i>`).join('')}</span>`;
   const b=document.createElement('button');b.className='b'+(maxed||save.coins<c?' alt':'');b.textContent=maxed?'เต็มแล้ว':'ซื้อ 🪙 '+c;b.disabled=maxed||save.coins<c;
   b.onclick=()=>{if(save.coins>=c&&!maxed){save.coins-=c;save.up[s.id]=l+1;persist();S.coin();renderShop();}};d.appendChild(b);box.appendChild(d);}}
-$('#startBtn').onclick=()=>{netClose();startGame();};$('#againBtn').onclick=()=>{if(NET.mode)backToLobby();else if(NET.wasOnline){NET.wasOnline=false;openCoop();}else startGame();};$('#menuBtn').onclick=showMenu;
+$('#startBtn').onclick=()=>{if(GATE.on){gateOn();return;}netClose();startGame();};$('#againBtn').onclick=()=>{if(NET.mode)backToLobby();else if(NET.wasOnline){NET.wasOnline=false;openCoop();}else startGame();};$('#menuBtn').onclick=showMenu;
 $('#overShopBtn').onclick=()=>openShop('over');
 $('#shopBack').onclick=()=>{if(shopFrom==='over'){hideAll();$('#over').hidden=false;}else showMenu();};
 $('#resumeBtn').onclick=resume;$('#quitBtn').onclick=()=>{$('#pause').hidden=true;state='play';if(NET.mode){NET.send({t:'bye'});netClose();}endRun();};
@@ -1417,11 +1417,17 @@ function acctMsg(t,ok){const m=$('#acctMsg');m.textContent=t;m.style.color=ok?'#
 async function acctGo(kind){const u=$('#acctUser').value.trim(),p=$('#acctPass').value;if(!u||!p){acctMsg('ใส่ชื่อและรหัสผ่านก่อน');return;}
  acctMsg(kind==='reg'?'กำลังสมัคร…':'กำลังเข้าสู่ระบบ…',true);
  try{const r=await rpc(kind==='reg'?'game_register':'game_login',{p_user:u,p_pass:p});ACC={u:r.username,t:r.token};accSave();
-  const sv=r.data||{};if(kind==='reg'||!sv._ts){save.name=r.username;persist();await cloudPush();acctMsg('สมัครเรียบร้อย ความคืบหน้าในเครื่องนี้ถูกเก็บเข้าบัญชีแล้ว',true);accUi();}
+  const sv=r.data||{};if(kind==='reg'||!sv._ts){save.name=r.username;persist();await cloudPush();acctMsg('สมัครเรียบร้อย ความคืบหน้าในเครื่องนี้ถูกเก็บเข้าบัญชีแล้ว',true);accUi();if(GATE.on)setTimeout(gateOff,900);}
   else{acctMsg('เข้าสู่ระบบแล้ว กำลังโหลดเซฟ…',true);applyCloud(sv);}}
  catch(e){acctMsg(e.message);}}
 $('#acctBtn').onclick=()=>{$('#acct').hidden=false;accUi();acctMsg('',true);};
-$('#acctClose').onclick=()=>{$('#acct').hidden=true;};
+$('#acctClose').onclick=()=>{if(GATE.on)return;$('#acct').hidden=true;};
+// mandatory account: until logged in, the account panel can't be closed and play is blocked.
+// If the server has no account functions yet (404) or can't be reached, the game stays playable so it never locks everyone out.
+const GATE={on:false};
+function gateOn(){GATE.on=true;$('#acct').hidden=false;$('#acct').classList.add('forced');$('#acctClose').hidden=true;$('#acctGate').hidden=false;accUi();}
+function gateOff(){GATE.on=false;$('#acct').classList.remove('forced');$('#acctClose').hidden=false;$('#acctGate').hidden=true;$('#acct').hidden=true;}
+if(!ACC.t&&lbOn())fetch(LEADERBOARD.url.replace(/\/$/,'')+'/rest/v1/rpc/game_load',{method:'POST',headers:lbHeaders(),body:JSON.stringify({p_token:'00000000-0000-0000-0000-000000000000'})}).then(r=>{if(r.status!==404&&!ACC.t)gateOn();}).catch(()=>{});
 $('#acctLogin').onclick=()=>acctGo('login');$('#acctReg').onclick=()=>acctGo('reg');
 for(const id of ['#acctUser','#acctPass'])$(id).addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')acctGo('login');});
 $('#acctLogout').onclick=async()=>{clearTimeout(cloudT);await cloudPush();ACC={};accSave();try{localStorage.removeItem(SAVE_KEY);}catch(e){}location.reload();};
@@ -1909,7 +1915,7 @@ function coopHud(){const list=NET.mode?[...MATES.values()].filter(m=>m.on):[];$(
 function dmgDir(x,z){const dx=x-P.pos.x,dz=z-P.pos.z;if(Math.hypot(dx,dz)<0.3)return;const cs=Math.cos(P.yaw),sn=Math.sin(P.yaw);const lx=dx*cs-dz*sn,ly=-dx*sn-dz*cs;const ang=Math.atan2(lx,ly);
  const i=document.createElement('i');i.style.transform=`rotate(${ang}rad)`;$('#dmgdir').appendChild(i);setTimeout(()=>i.remove(),900);}
 // lobby
-$('#coopBtn').onclick=openCoop;
+$('#coopBtn').onclick=()=>{if(GATE.on){gateOn();return;}openCoop();};
 $('#hostBtn').onclick=()=>netHost();$('#joinBtn').onclick=()=>netJoin();
 $('#localTest').onclick=()=>{NET.local=!NET.local;$('#localTest').textContent=NET.local?'โหมดทดสอบ: เปิด (กดเพื่อกลับไปออนไลน์จริง)':'โหมดทดสอบหลายแท็บในเครื่องเดียว';
  if(DIR.browse){try{DIR.browse.destroy();}catch(e){}DIR.browse=null;}if(DIR.peer){try{DIR.peer.destroy();}catch(e){}DIR.peer=null;}DIR.isDir=false;DIR.conn=null;DIR.becoming=false;
