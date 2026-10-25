@@ -166,7 +166,7 @@ Object.assign(S,{
   if(c.mech==='slide'){nz(t+0.05,0.02,'bandpass',3200,0.22*vol,6,0);nz(t+0.085,0.025,'bandpass',2400,0.26*vol,6,0);}
   if(c.mech==='ak')nz(t+0.02,0.015,'bandpass',2800,0.15*vol,7,0);
   if(c.mech==='bar'){nz(t+0.09,0.03,'bandpass',1800,0.3*vol,5,0);nz(t+0.14,0.03,'bandpass',1400,0.3*vol,5,0);}
-  if(c.ping&&vol>0.6&&Math.random()<c.ping)S.casing(0.3+Math.random()*0.15);},
+  },
  casing(d){if(!AC||muted)return;const t=AC.currentTime+d;osc(t,'triangle',4200+rand(-300,300),0,0.12,0.05,0.2);osc(t+0.09,'triangle',5200+rand(-300,300),0,0.08,0.035,0.2);osc(t+0.16,'triangle',4700,0,0.06,0.025,0.1);},
  rl(k){if(!AC||muted)return;const t=AC.currentTime;
   if(k==='out'){nz(t,0.03,'bandpass',1800,0.3,5,0);osc(t,'square',260,180,0.04,0.05,0);}
@@ -188,11 +188,35 @@ Object.assign(S,{
  shield(){if(!AC||muted)return;const t=AC.currentTime;osc(t,'triangle',1500,900,0.25,0.2,0.4);osc(t,'sine',2400,1800,0.3,0.12,0.4);},
  crit(){if(!AC||muted)return;const t=AC.currentTime;osc(t,'square',2600,0,0.06,0.08,0.05);osc(t+0.03,'triangle',3900,0,0.12,0.1,0.1);},
 });
+// ---- weapon foley: layered metallic transients (noise click + inharmonic pings + body thump) ----
+function clk(t,f,vol,dec=0.05){nz(t,0.012,'bandpass',f,vol,9,0.08);osc(t,'sine',f*1.37,0,dec,vol*0.28,0.06);osc(t,'triangle',f*2.11,0,dec*0.7,vol*0.13,0.06);}
+function scrape(t,dur,f1,f2,vol){nz(t,dur,'bandpass',f1,vol,2.2,0.05,f2);}
+function thud(t,f,vol,dur=0.08){osc(t,'sine',f,f*0.55,dur,vol,0.04);nz(t,dur*0.6,'lowpass',700,vol*0.5,1,0.05);}
+Object.assign(S,{
+ rl(k){if(!AC||muted)return;const t=AC.currentTime;
+  switch(k){
+   case 'out':clk(t,3200,0.35,0.03);scrape(t+0.02,0.13,1400,600,0.32);clk(t+0.13,1500,0.25,0.06);break;
+   case 'in':scrape(t,0.07,900,1800,0.25);clk(t+0.07,1900,0.75,0.07);thud(t+0.07,150,0.55);clk(t+0.09,3600,0.25,0.04);break;
+   case 'tap':thud(t,105,0.7,0.1);nz(t,0.05,'lowpass',650,0.45,1,0.05);clk(t+0.01,2400,0.3,0.05);break;
+   case 'grab':nz(t,0.12,'bandpass',900,0.18,0.7,0.02,1600);break;
+   case 'charge':scrape(t,0.09,1200,2700,0.35);clk(t+0.09,2600,0.45,0.04);clk(t+0.16,2100,0.85,0.11);thud(t+0.16,190,0.5);osc(t+0.16,'sine',3300,0,0.22,0.06,0.3);break;
+   case 'slide':scrape(t,0.05,1800,2600,0.25);clk(t+0.05,2700,0.8,0.1);thud(t+0.05,220,0.45);osc(t+0.05,'sine',3900,0,0.2,0.05,0.3);break;
+   case 'break':clk(t,1600,0.5,0.08);osc(t,'sine',300,150,0.06,0.3,0);scrape(t+0.02,0.1,800,400,0.2);break;
+   case 'eject':nz(t,0.05,'bandpass',900,0.3,3,0);osc(t+0.22,'triangle',3100,0,0.12,0.07,0.15);osc(t+0.3,'triangle',2700,0,0.1,0.06,0.15);osc(t+0.37,'triangle',2900,0,0.08,0.04,0.1);break;
+   case 'shell':scrape(t,0.06,1100,1700,0.25);clk(t+0.06,1300,0.45,0.05);thud(t+0.06,240,0.25,0.05);break;
+   case 'close':clk(t,1800,0.85,0.1);thud(t,200,0.6);osc(t,'sine',1250,0,0.18,0.05,0.25);break;
+   case 'open':clk(t,2300,0.4,0.05);osc(t+0.02,'sawtooth',320,520,0.12,0.03,0.05);scrape(t+0.03,0.1,1000,700,0.18);break;
+   case 'belt':for(let i=0;i<7;i++)clk(t+i*0.028+rand(0,0.01),rand(2400,3600),0.18,0.03);break;
+  }},
+ step(v=1){if(!AC||muted)return;const t=AC.currentTime;osc(t,'sine',rand(70,95),45,0.09,0.22*v,0);nz(t,0.07,'bandpass',rand(1100,2200),0.09*v,1.4,0.02);nz(t+0.015,0.05,'highpass',3500,0.04*v,1,0);},
+ equip(){if(!AC||muted)return;const t=AC.currentTime;nz(t,0.14,'bandpass',700,0.2,0.8,0.02,1800);clk(t+0.12,2300,0.35,0.05);},
+});
 // ---- pre-rendered SFX: each shot becomes one buffer source instead of ~12 live nodes ----
 function bakeAll(){if(!AC||!window.OfflineAudioContext||baking)return;baking=true;const sr=AC.sampleRate;
  const jobs=[];for(const id of ['dg','ssg','ak','m79','bar','uzi','m4','m60','rpg'])jobs.push(['gun_'+id,()=>LIVE.gun(id,1),id==='bar'||id==='rpg'?3:id==='ssg'||id==='m4'?2.4:1.8,id==='rpg'?1:3]);
  jobs.push(['boom_1',()=>LIVE.boom(1),3,2],['boom_0.8',()=>LIVE.boom(0.8),3,1]);
- for(const k of ['out','in','slide','charge','break','eject','shell','close'])jobs.push(['rl_'+k,()=>LIVE.rl(k),0.7,1]);
+ for(const k of ['out','in','slide','charge','break','eject','shell','close','tap','grab','open','belt'])jobs.push(['rl_'+k,()=>LIVE.rl(k),0.8,2]);
+ jobs.push(['step',()=>LIVE.step(1),0.25,4]);jobs.push(['equip',()=>LIVE.equip(),0.4,1]);
  for(const k of ['head','tick','hurt','squish','gib','crunch','punch','zap','fireball','acid','ammo','dry','crit','sizzle','swoosh','jump','dash','coin','toss'])if(LIVE[k])jobs.push([k,()=>LIVE[k](),k==='gib'||k==='crunch'?1.2:0.8,k==='tick'||k==='squish'||k==='head'?2:1]);
  (async()=>{for(const [key,fn,dur,n] of jobs){const list=[];for(let v=0;v<n;v++){const off=new OfflineAudioContext(2,Math.ceil(sr*dur),sr);const bus=off.createGain();bus.connect(off.destination);
    const conv=off.createConvolver();conv.buffer=irBuf;const rs=off.createGain();rs.gain.value=0.35;rs.connect(conv).connect(off.destination);
@@ -207,6 +231,7 @@ S.boom=(vol=1)=>{if(!AC||muted)return;if(playBaked('boom_'+(vol<0.9?'0.8':'1'),v
 S.rl=(k)=>{if(!AC||muted)return;if(playBaked('rl_'+k))return;LIVE.rl(k);};
 for(const k of ['head','tick','hurt','squish','gib','crunch','punch','zap','fireball','acid','ammo','dry','crit','sizzle','swoosh','jump','dash','coin','toss'])if(LIVE[k]&&LIVE[k].length===0)S[k]=()=>{if(!AC||muted)return;if(playBaked(k))return;LIVE[k]();};
 S.slam=()=>S.boom(1.2);
+S.step=(v=1)=>{if(!AC||muted)return;if(playBaked('step',v*0.9))return;LIVE.step(v);};S.equip=()=>{if(!AC||muted)return;if(playBaked('equip'))return;LIVE.equip();};
 S.zedIn=()=>{if(!AC)return;const t=AC.currentTime;zedF.frequency.cancelScheduledValues(t);zedF.frequency.setTargetAtTime(650,t,0.08);if(muted)return;nz(t,0.6,'bandpass',300,0.5,0.8,0.5,3000);osc(t,'sine',60,40,0.5,0.6,0.3);osc(t+0.45,'sine',55,40,0.25,0.5,0);};
 S.zedOut=()=>{if(!AC)return;const t=AC.currentTime;zedF.frequency.cancelScheduledValues(t);zedF.frequency.setTargetAtTime(20000,t,0.15);if(muted)return;nz(t,0.5,'bandpass',2500,0.35,0.8,0.4,300);};
 S.beat=()=>{if(!AC||muted)return;const t=AC.currentTime;osc(t,'sine',58,40,0.18,0.55,0);osc(t+0.2,'sine',52,38,0.15,0.4,0);};
@@ -261,7 +286,7 @@ function setPR(){renderer.setPixelRatio(basePR()*DYN.scale);resize();}
 function dynRes(dt){if(state!=='play'&&state!=='menu')return;DYN.acc+=dt;DYN.n++;DYN.t+=dt;if(DYN.t<1.2)return;const avg=DYN.acc/DYN.n;DYN.acc=0;DYN.n=0;DYN.t=0;
  const min=save.quality==='low'?0.6:0.65;if(avg>1/50&&DYN.scale>min){DYN.scale=Math.max(min,DYN.scale-0.1);setPR();}else if(avg<1/58&&DYN.scale<1){DYN.scale=Math.min(1,DYN.scale+0.05);setPR();}}
 const LIGHTS_Q={high:8,medium:5,low:3};
-function applyQuality(){const q=save.quality;DYN.scale=1;renderer.setPixelRatio(basePR());
+function applyQuality(){const q=save.quality;DYN.scale=1;if(typeof shadowFrames!=='undefined')shadowFrames=0;renderer.setPixelRatio(basePR());
  renderer.shadowMap.enabled=q!=='low';for(const k in WORLDS){WORLDS[k].setShadows(q!=='low');WORLDS[k].setLightCount(LIGHTS_Q[q]);}scene.traverse(o=>{if(o.material&&o.material.needsUpdate!==undefined)o.material.needsUpdate=true;});setupPost();resize();
  ['#qBtn','#qBtn2'].forEach(s=>$(s).textContent='กราฟิก: '+QNAME[q]);}
 const splatCv=$('#splat'),sctx=splatCv.getContext('2d');
@@ -288,7 +313,7 @@ async function setLevel(lv){lv=lv===2?2:1;if(LEVEL===lv&&WORLDS[lv])return;
  for(const b of barrels.slice())removeBarrel(b);barrels.length=0;
  statics.length=0;statics.push(...W.statics);obstacles.length=0;obstacles.push(...W.obstacles);
  computeBarrelPos();
- if(!W.env)W.bakeEnv();scene.environment=W.env;scene.environmentIntensity=W.envI;
+ if(!W.env){renderer.shadowMap.needsUpdate=true;W.bakeEnv();}shadowFrames=0;scene.environment=W.env;scene.environmentIntensity=W.envI;
  clearMenuCats();$('#loading').hidden=true;if(typeof renderLevels==='function')renderLevels();}
 const GEO={box:new THREE.BoxGeometry(1,1,1),cone:new THREE.ConeGeometry(1,1,6),cone4:new THREE.ConeGeometry(1,1,4),sph:new THREE.SphereGeometry(1,14,10),cyl:new THREE.CylinderGeometry(1,1,1,14)};
 const mc={};
@@ -393,16 +418,16 @@ const AMMO_NAME={ae:'.50 AE',shells:'ลูกซอง',762:'7.62 มม.',gren
 const AMMO_MAX={ae:Infinity,shells:40,'762':300,gren:20,bmg:30,fuel:400,'9mm':384,rkt:10},AMMO_START={ae:Infinity,shells:16,'762':100,gren:6,bmg:10,fuel:160,'9mm':128,rkt:3},AMMO_PICK={shells:8,'762':45,gren:3,bmg:5,fuel:70,'9mm':48,rkt:1};
 // rev: [progress, sound] events during reload
 const GUNS=[
- {id:'dg',name:'ดีเซิร์ทอีเกิล .50',short:'DE .50',desc:'ปืนพกกระสุนไม่จำกัด ยิงหัวแรงพิเศษ',ammo:'ae',mag:7,reload:1.0,dmg:62,rate:3.6,semi:1,pellets:1,spread:0.012,ads:0.002,knock:5,kick:0.07,vk:0.09,head:1.35,color:0xffe0a0,flash:0.45,shake:0.12,rev:[[0.15,'out'],[0.55,'in'],[0.85,'slide']]},
+ {id:'dg',name:'ดีเซิร์ทอีเกิล .50',short:'DE .50',desc:'ปืนพกกระสุนไม่จำกัด ยิงหัวแรงพิเศษ',ammo:'ae',mag:7,reload:1.0,dmg:62,rate:3.6,semi:1,pellets:1,spread:0.012,ads:0.002,knock:5,kick:0.07,vk:0.09,head:1.35,color:0xffe0a0,flash:0.45,shake:0.12,rev:[[0.13,'out'],[0.6,'in'],[0.65,'tap'],[0.88,'slide']]},
  {id:'ssg',name:'ลูกซองสองลำกล้อง',short:'2 ลำกล้อง',desc:'ประชิดตัวแมวแตกเป็นชิ้น',ammo:'shells',mag:2,reload:1.2,dmg:12,rate:3.4,semi:1,pellets:12,spread:0.085,ads:0.05,knock:10,kick:0.075,vk:0.14,falloff:1,color:0xffd090,flash:0.6,shake:0.22,rev:[[0.08,'break'],[0.3,'eject'],[0.48,'shell'],[0.62,'shell'],[0.88,'close']]},
- {id:'ak',name:'AK-47',short:'AK-47',desc:'ไรเฟิลอัตโนมัติ 30 นัด ทะลุ 1 ตัว',ammo:'762',mag:30,reload:1.6,dmg:24,rate:10,pellets:1,spread:0.016,ads:0.005,bloom:0.006,pierce:1,knock:2.4,kick:0.016,vk:0.03,hk:0.008,color:0xffe0a0,flash:0.36,shake:0.06,rev:[[0.15,'out'],[0.55,'in'],[0.82,'charge']]},
+ {id:'ak',name:'AK-47',short:'AK-47',desc:'ไรเฟิลอัตโนมัติ 30 นัด ทะลุ 1 ตัว',ammo:'762',mag:30,reload:1.6,dmg:24,rate:10,pellets:1,spread:0.016,ads:0.005,bloom:0.006,pierce:1,knock:2.4,kick:0.016,vk:0.03,hk:0.008,color:0xffe0a0,flash:0.36,shake:0.06,rev:[[0.13,'out'],[0.6,'in'],[0.65,'tap'],[0.8,'grab'],[0.85,'charge']]},
  {id:'m79',name:'เอ็ม 79',short:'M79',desc:'ยิงลูกระเบิดโค้ง ระเบิดเมื่อกระทบ',ammo:'gren',mag:1,reload:0.85,dmg:200,rate:1.2,semi:1,proj:'gren',kick:0.08,vk:0.1,color:0xff8a3a,flash:0.3,shake:0.12,rev:[[0.1,'break'],[0.5,'shell'],[0.88,'close']]},
- {id:'bar',name:'บาร์เรตต์ .50',short:'.50 BMG',desc:'สไนเปอร์ทะลุทั้งแถว ไม่สนเกราะ',ammo:'bmg',mag:5,reload:2.0,dmg:280,rate:1.25,semi:1,pellets:1,spread:0.03,ads:0,pierce:99,knock:16,kick:0.15,vk:0.16,armorPen:1,color:0xcff4ff,flash:0.7,shake:0.3,rev:[[0.15,'out'],[0.55,'in'],[0.85,'charge']]},
+ {id:'bar',name:'บาร์เรตต์ .50',short:'.50 BMG',desc:'สไนเปอร์ทะลุทั้งแถว ไม่สนเกราะ',ammo:'bmg',mag:5,reload:2.0,dmg:280,rate:1.25,semi:1,pellets:1,spread:0.03,ads:0,pierce:99,knock:16,kick:0.15,vk:0.16,armorPen:1,color:0xcff4ff,flash:0.7,shake:0.3,rev:[[0.13,'out'],[0.6,'in'],[0.65,'tap'],[0.8,'grab'],[0.85,'charge']]},
  {id:'fl',name:'ปืนพ่นไฟ',short:'พ่นไฟ',desc:'ย่างทั้งฝูง ศัตรูติดไฟลุกลาม',ammo:'fuel',mag:0,dmg:7,rate:16,flame:1,kick:0,vk:0.004,color:0xff8a3a},
- {id:'uzi',name:'UZI',short:'UZI',desc:'กราดยิงเร็วที่สุด 32 นัด',ammo:'9mm',mag:32,reload:1.25,dmg:15,rate:16,pellets:1,spread:0.03,ads:0.012,bloom:0.008,knock:1.4,kick:0.01,vk:0.02,hk:0.012,color:0xffe0a0,flash:0.3,shake:0.04,rev:[[0.15,'out'],[0.55,'in'],[0.82,'slide']]},
- {id:'m4',name:'ลูกซองออโต้ M4',short:'M4',desc:'ลูกซองกึ่งอัตโนมัติ 7 นัด ยิงรัวได้',ammo:'shells',mag:7,reload:2.1,dmg:11,rate:4.2,semi:1,pellets:9,spread:0.07,ads:0.045,knock:7,kick:0.06,vk:0.1,falloff:1,color:0xffd090,flash:0.5,shake:0.16,rev:[[0.1,'shell'],[0.3,'shell'],[0.5,'shell'],[0.7,'shell'],[0.9,'charge']]},
- {id:'m60',name:'M60 ปืนกล',short:'M60',desc:'ปืนกลสายพาน 100 นัด ทะลุ 2 ตัว',ammo:'762',mag:100,reload:3.3,dmg:30,rate:9.5,pellets:1,spread:0.022,ads:0.01,bloom:0.005,pierce:2,knock:3,kick:0.02,vk:0.032,hk:0.01,color:0xffe0a0,flash:0.45,shake:0.08,heavy:1,rev:[[0.1,'out'],[0.3,'break'],[0.62,'in'],[0.85,'close']]},
- {id:'rpg',name:'RPG-7',short:'RPG',desc:'จรวดระเบิดวงกว้าง ฆ่ายกฝูง',ammo:'rkt',mag:1,reload:1.9,dmg:430,rate:0.9,semi:1,proj:'rkt',kick:0.12,vk:0.15,color:0xff8a3a,flash:0.8,shake:0.25,rev:[[0.2,'out'],[0.6,'in'],[0.88,'charge']]},
+ {id:'uzi',name:'UZI',short:'UZI',desc:'กราดยิงเร็วที่สุด 32 นัด',ammo:'9mm',mag:32,reload:1.25,dmg:15,rate:16,pellets:1,spread:0.03,ads:0.012,bloom:0.008,knock:1.4,kick:0.01,vk:0.02,hk:0.012,color:0xffe0a0,flash:0.3,shake:0.04,rev:[[0.13,'out'],[0.6,'in'],[0.65,'tap'],[0.85,'slide']]},
+ {id:'m4',name:'ลูกซองออโต้ M4',short:'M4',desc:'ลูกซองกึ่งอัตโนมัติ 7 นัด ยิงรัวได้',ammo:'shells',mag:7,reload:2.1,dmg:11,rate:4.2,semi:1,pellets:9,spread:0.07,ads:0.045,knock:7,kick:0.06,vk:0.1,falloff:1,color:0xffd090,flash:0.5,shake:0.16,rev:[[0.18,'shell'],[0.39,'shell'],[0.6,'shell'],[0.81,'shell'],[0.92,'charge']]},
+ {id:'m60',name:'M60 ปืนกล',short:'M60',desc:'ปืนกลสายพาน 100 นัด ทะลุ 2 ตัว',ammo:'762',mag:100,reload:3.3,dmg:30,rate:9.5,pellets:1,spread:0.022,ads:0.01,bloom:0.005,pierce:2,knock:3,kick:0.02,vk:0.032,hk:0.01,color:0xffe0a0,flash:0.45,shake:0.08,heavy:1,rev:[[0.07,'open'],[0.14,'out'],[0.6,'in'],[0.68,'belt'],[0.85,'close']]},
+ {id:'rpg',name:'RPG-7',short:'RPG',desc:'จรวดระเบิดวงกว้าง ฆ่ายกฝูง',ammo:'rkt',mag:1,reload:1.9,dmg:430,rate:0.9,semi:1,proj:'rkt',kick:0.12,vk:0.15,color:0xff8a3a,flash:0.8,shake:0.25,rev:[[0.25,'out'],[0.66,'in'],[0.72,'tap']]},
  {id:'machete',name:'มีดพร้า',short:'มีดพร้า',desc:'ฟันไว ฟันหัวขาด · คลิกขวาฟันหนัก',ammo:'ae',melee:1,mag:0,dmg:62,heavyDmg:140,rate:2.7,range:2.7,arc:0.5,cleave:1,knock:6,color:0xffffff},
  {id:'katana',name:'คาตานะ',short:'คาตานะ',desc:'ฟันทะลุหลายตัว · คลิกขวาฟันหนักรอบตัว',ammo:'ae',melee:1,mag:0,dmg:95,heavyDmg:220,rate:1.9,range:3.1,arc:0.42,cleave:3,knock:5,color:0xffffff},
  {id:'hammer',name:'ค้อนปอนด์',short:'ค้อน',desc:'ทุบมึน · คลิกขวาทุบพื้นกระแทกรอบตัว',ammo:'ae',melee:1,mag:0,dmg:180,heavyDmg:380,rate:0.95,range:2.9,arc:0.48,cleave:2,knock:18,stun:1,color:0xffffff},
@@ -552,8 +577,19 @@ function abilityTick(dt){P.abT=Math.max(0,P.abT-dt);P.infT=Math.max(0,P.infT-dt)
 function holsterTick(dt){const lv=upLv('holster');if(!lv)return;P.hol=P.hol||GUNS.map(()=>0);for(let i=0;i<GUNS.length;i++){const G=GUNS[i];if(i===P.cur||!P.own[i]||!G.mag||P.mag[i]>=magSize(i)||(G.ammo!=='ae'&&P.ammo[G.ammo]<=0)){P.hol[i]=0;continue;}
  P.hol[i]+=dt;if(P.hol[i]>=G.reload*(lv>1?1.5:2.5)){P.hol[i]=0;const need=magSize(i)-P.mag[i];const take=G.ammo==='ae'?need:Math.min(need,P.ammo[G.ammo]);P.mag[i]+=take;if(G.ammo!=='ae')P.ammo[G.ammo]-=take;}}}
 function shotDmgMul(){return (U('moon')&&!P.onGround?1.3:1)*(P.berserk>0?1.25:1);}
-function ejectCasing(gi){const ej=gunModels[gi].userData.ej;if(!ej)return;ej.getWorldPosition(_d);right.set(Math.cos(P.yaw),0,-Math.sin(P.yaw));
- fx(_d.x,_d.y,_d.z,{color:0xd6a64a,s0:0.05,s1:0.04,life:0.55,vx:right.x*rand(2.5,4)+rand(-0.5,0.5),vy:rand(2.5,4),vz:right.z*rand(2.5,4)+rand(-0.5,0.5),g:14});}
+// real brass: small instanced casings with physics that bounce and tinkle on the ground
+const CS=48,casGeo=new THREE.CylinderGeometry(1,1,1,8);casGeo.rotateX(Math.PI/2);const casI=inst(casGeo,new THREE.MeshStandardMaterial({color:0xd6a64a,metalness:1,roughness:0.3}),CS);
+const cs={p:new Float32Array(CS*3),v:new Float32Array(CS*3),r:new Float32Array(CS*3),w:new Float32Array(CS*3),l:new Float32Array(CS),s:new Float32Array(CS*2),b:new Uint8Array(CS),i:0};
+const CAS={dg:[0.009,0.032],ak:[0.007,0.04],uzi:[0.006,0.025],bar:[0.011,0.1],m60:[0.007,0.045],m4:[0.012,0.05]};
+function ejectCasing(gi){const G=GUNS[gi],ej=gunModels[gi].userData.ej;if(!ej)return;ej.getWorldPosition(_d);right.set(Math.cos(P.yaw),0,-Math.sin(P.yaw));fwd.set(-Math.sin(P.yaw),0,-Math.cos(P.yaw));
+ const i=cs.i++%CS,sz=CAS[G.id]||[0.008,0.035],sp=rand(2.6,4.2);cs.p[i*3]=_d.x;cs.p[i*3+1]=_d.y;cs.p[i*3+2]=_d.z;
+ cs.v[i*3]=right.x*sp+fwd.x*rand(-0.6,0.4);cs.v[i*3+1]=rand(2.2,3.6);cs.v[i*3+2]=right.z*sp+fwd.z*rand(-0.6,0.4);
+ for(let a=0;a<3;a++){cs.r[i*3+a]=rand(0,6);cs.w[i*3+a]=rand(-25,25);}cs.l[i]=2.5;cs.s[i*2]=sz[0];cs.s[i*2+1]=sz[1];cs.b[i]=0;casI.setColorAt(i,tmpC.setHex(G.id==='m4'?0xc02020:0xffffff));casI.instanceColor.needsUpdate=true;}
+function casingsTick(dt){let any=false;for(let i=0;i<CS;i++){if(cs.l[i]<=0)continue;any=true;cs.l[i]-=dt;const j=i*3;
+  cs.v[j+1]-=20*dt;cs.p[j]+=cs.v[j]*dt;cs.p[j+1]+=cs.v[j+1]*dt;cs.p[j+2]+=cs.v[j+2]*dt;for(let a=0;a<3;a++)cs.r[j+a]+=cs.w[j+a]*dt;
+  const gy=groundAt(cs.p[j],cs.p[j+2])+cs.s[i*2];if(cs.p[j+1]<gy){cs.p[j+1]=gy;if(cs.v[j+1]<-1.2){cs.v[j+1]*=-0.35;cs.v[j]*=0.55;cs.v[j+2]*=0.55;for(let a=0;a<3;a++)cs.w[j+a]*=0.5;if(cs.b[i]<2&&Math.hypot(cs.p[j]-P.pos.x,cs.p[j+2]-P.pos.z)<6){cs.b[i]++;S.casing(0);}}else{cs.v[j]=cs.v[j+1]=cs.v[j+2]=0;cs.w[j]=cs.w[j+2]=0;cs.w[j+1]*=0.9;cs.r[j]=Math.PI/2*0;cs.r[j+2]=0;}}
+  if(cs.l[i]<=0){casI.setMatrixAt(i,ZERO);continue;}const k=Math.min(1,cs.l[i]*2);dummy.position.set(cs.p[j],cs.p[j+1],cs.p[j+2]);dummy.rotation.set(cs.r[j],cs.r[j+1],cs.r[j+2]);dummy.scale.set(cs.s[i*2]*k,cs.s[i*2]*k,cs.s[i*2+1]*k);dummy.updateMatrix();casI.setMatrixAt(i,dummy.matrix);}
+ if(any)casI.instanceMatrix.needsUpdate=true;}
 function fire(dt){
  const gi=P.cur,G=GUNS[gi];if(P.switchT>0||P.meleeT>0||P.down)return;
  if(G.melee){meleeSwing(G,false);return;}
@@ -603,7 +639,7 @@ function fire(dt){
   if(shotHead){P.stat.heads++;P.hsStreak++;P.stat.bestStreak=Math.max(P.stat.bestStreak,P.hsStreak);if(P.hsStreak>=3)streakT=1.6;if(P.hsStreak%5===0)styleAdd(40,'หัวติดกัน x'+P.hsStreak);}
   else if(P.hsStreak>0){if(P.hsStreak>=3){streakT=0.9;}P.hsStreak=0;}
   if(shotKills>=2)styleAdd(40*(shotKills-1),(G.id==='bar'?'ทะลุ':'มัลติคิล')+' x'+shotKills);
-  if(G.id!=='ssg'&&G.id!=='rpg')ejectCasing(gi);
+  if(G.id!=='ssg'&&G.id!=='rpg'&&G.id!=='m79')ejectCasing(gi);
  }
  if(G.bloom)P.bloom=Math.min(0.06,P.bloom+G.bloom);
  // muzzle flash
@@ -918,7 +954,8 @@ function vmKick(G){const h=G.vk||0.05,k=G.kick||0.04,heavy=G.id==='bar'||G.id===
  VMA.camRoll+=rand(-1,1)*h*0.25;}
 function vmEvent(ev){switch(ev){case 'out':VMA.rv.z+=1.6;VMA.pv.y-=0.25;break;case 'in':VMA.pv.y+=0.45;VMA.rv.x-=2.2;VMA.rv.z-=0.8;break;
  case 'slide':case 'charge':VMA.pv.z+=0.35;VMA.rv.z-=2.4;VMA.rv.y+=0.8;break;case 'break':VMA.rv.x-=2.6;VMA.pv.y-=0.2;break;case 'close':VMA.rv.x+=3.2;VMA.pv.y+=0.25;break;
- case 'eject':VMA.rv.x+=1.4;break;case 'shell':VMA.pv.y+=0.18;VMA.rv.z+=0.6;break;}}
+ case 'eject':VMA.rv.x+=1.4;break;case 'shell':VMA.pv.y+=0.18;VMA.rv.z+=0.6;break;case 'tap':VMA.pv.y+=0.3;VMA.rv.x-=1.4;break;case 'grab':VMA.rv.z-=0.6;break;
+ case 'open':VMA.rv.x+=1.2;VMA.pv.y-=0.15;break;case 'belt':VMA.rv.z+=0.8;break;}}
 function vmEquip(){VMA.p.set(0.05,-0.32,0.05);VMA.r.set(-0.9,0.25,0.45);VMA.pv.set(0,0,0);VMA.rv.set(0,0,0);}
 function vmLand(v){const f=Math.min(1,v/16);VMA.pv.y-=1.4*f;VMA.rv.x-=2.8*f;VMA.camRoll+=rand(-1,1)*0.01*f;}
 function vmJump(){VMA.pv.y+=0.5;VMA.rv.x+=0.9;}
@@ -927,7 +964,7 @@ function vmAnimate(dt,G,rk,mx,mz,ax){
  const ads=P.ads&&P.reloadT<=0&&P.switchT<=0&&!G.melee;VMA.adsK+=((ads?1:0)-VMA.adsK)*Math.min(1,dt*14);const a=VMA.adsK,free=1-a*0.88;
  // tactical sprint: moving forward for a while without shooting
  const moving=(Math.abs(mx)+Math.abs(mz))>0.1&&P.onGround;const fwdRun=mz>0.5&&!firing&&!P.ads&&P.reloadT<=0&&P.dashT<=0&&!P.down;
- VMA.runT=fwdRun?VMA.runT+dt:0;const sprinting=VMA.runT>0.55;VMA.spr+=((sprinting?1:0)-VMA.spr)*Math.min(1,dt*(sprinting?6:12));P.sprint=VMA.spr;
+ VMA.spr=0;P.sprint=0;
  // look sway (lags behind the camera)
  let dy=P.yaw-VMA.ly;dy=Math.atan2(Math.sin(dy),Math.cos(dy));const dp=P.pitch-VMA.lp;VMA.ly=P.yaw;VMA.lp=P.pitch;
  const sw=(G.heavy||G.id==='bar'||G.id==='rpg'?1.4:1)*free;VMA.rv.y+=clamp(dy,-0.15,0.15)*16*sw;VMA.rv.x+=clamp(dp,-0.15,0.15)*12*sw;VMA.pv.x+=clamp(-dy,-0.15,0.15)*2.2*sw;
@@ -939,7 +976,6 @@ function vmAnimate(dt,G,rk,mx,mz,ax){
  // strafe roll + forward lean
  _vr.z+=-mx*0.075*free;_vr.x+=-mz*0.012*free;_vt.x+=-mx*0.012*free;
  // sprint pose: canted up and in, like a modern tactical run
- const sp=VMA.spr;_vt.x+=-0.06*sp;_vt.y+=-0.05*sp;_vt.z+=0.04*sp;_vr.x+=0.35*sp;_vr.y+=0.55*sp;_vr.z+=0.42*sp;
  // airborne: gun floats up a bit
  VMA.air+=((P.onGround?0:1)-VMA.air)*Math.min(1,dt*6);_vt.y+=0.018*VMA.air;_vr.x+=0.06*VMA.air;
  // dash
@@ -948,7 +984,7 @@ function vmAnimate(dt,G,rk,mx,mz,ax){
  if(rk>=0&&!G.melee){const w=rk<0.14?rk/0.14:rk>0.86?(1-rk)/0.14:1,e=w*w*(3-2*w);const brk=G.id==='ssg'||G.id==='m79';
   if(brk){_vr.x+=-0.42*e;_vr.z+=0.25*e;_vt.y+=-0.02*e;_vt.x+=-0.04*e;}
   else if(G.id==='rpg'){_vr.x+=0.15*e;_vt.y-=0.12*e;_vr.z+=0.2*e;}
-  else{_vr.z+=0.62*e;_vr.x+=0.2*e+Math.sin(rk*Math.PI*2)*0.04*e;_vr.y+=0.15*e;_vt.y+=-0.035*e;_vt.x+=-0.045*e;_vt.z+=0.03*e;}}
+  else{_vr.z+=0.38*e;_vr.x+=0.12*e+Math.sin(rk*Math.PI*2)*0.03*e;_vr.y+=0.12*e;_vt.y+=-0.02*e;_vt.x+=-0.03*e;_vt.z+=0.03*e;}}
  // springs (two substeps for stability)
  const kP=G.heavy?150:190,kR=G.heavy?130:170;
  for(let i=0;i<2;i++){const h=dt/2;
@@ -1012,6 +1048,7 @@ function update(rdt){
  const ax=0.24*Math.min(1,camera.aspect/1.4);
  const rk=P.reloadT>0?1-P.reloadT/P.reloadDur:-1;
  vmAnimate(rdt,G,rk,mx,mz,ax);
+ {const st=Math.floor(VMA.t/Math.PI);if(st!==VMA.lastStep){VMA.lastStep=st;if(P.onGround&&(Math.abs(mx)+Math.abs(mz))>0.1&&!P.down)S.step(P.ads?0.45:0.8);}}
  if(P.meleeT>0){const k=Math.sin((1-P.meleeT/0.28)*Math.PI);fist.position.set(-0.05,-0.05+k*0.05,-0.15-k*0.45);fist.rotation.set(0,0,-0.3);}
  if(G.melee){const k=P.swingT>0?1-P.swingT/P.swingDur:-1,sd=P.swingSide||1;let rx=0.15+Math.sin(P.bob*0.5)*0.02,rz=0,px=0,py=0,pz=0;
   if(k>=0){if(P.swingHeavy){const w=k<0.45?k/0.45:1,st=k<0.45?0:Math.min(1,(k-0.45)/0.3);rx=0.15+w*1.1-st*2.6;pz=-st*0.25;py=w*0.08-st*0.12;rz=-0.2;}
@@ -1092,7 +1129,7 @@ function update(rdt){
    scene.remove(p.m);p.got=true;}
   if(p.age>(p.kind==='bz'?40:25)){scene.remove(p.m);p.got=true;}}
  pickups=pickups.filter(p=>!p.got);
- updateFxAndGore(dt);
+ updateFxAndGore(dt);casingsTick(dt);
  // combo / hud timers
  comboT-=dt;if(comboT<=0)combo=0;
  if(hitT>0){hitT-=rdt;if(hitT<=0)$('#hitm').style.opacity=0;}
@@ -1318,7 +1355,7 @@ sensEl.oninput=()=>{save.sens=+sensEl.value;$('#sensVal').textContent=save.sens.
 if(isTouch)document.body.classList.add('touch');
 
 /* ======================= INPUT ======================= */
-function switchGun(i){if(!P||i===undefined||i===P.cur||i<0||i>=GUNS.length||!P.own[i])return;P.swingT=0;vmEquip();P.last=P.cur;P.cur=i;P.switchT=0.3;P.reloadT=0;P.ads=false;P.trigger=false;flameSound(false);S.ammo();}
+function switchGun(i){if(!P||i===undefined||i===P.cur||i<0||i>=GUNS.length||!P.own[i])return;P.swingT=0;vmEquip();S.equip();P.last=P.cur;P.cur=i;P.switchT=0.3;P.reloadT=0;P.ads=false;P.trigger=false;flameSound(false);S.ammo();}
 function cycleGun(d){const L=P.slots,n=L.length;if(n<2)return;const j=L.indexOf(P.cur);switchGun(L[((j<0?0:j)+d+n*3)%n]);}
 function jump(){if(state!=='play'||P.down)return;if(P.onGround){P.vy=9;P.onGround=false;P.jumps=1;S.jump();vmJump();}else if((U('djump')||isChar('win'))&&P.jumps<2){P.vy=8.5;P.jumps=2;S.jump();for(let i=0;i<6;i++)fx(P.pos.x,P.pos.y,P.pos.z,{color:0xff7a20,s0:0.5,s1:0.1,life:0.3,vx:rand(-2,2),vy:-3,vz:rand(-2,2)});}}
 function dash(){if(P.dashCd>0||state!=='play'||P.down)return;const d=_c.set(0,0,0);fwd.set(-Math.sin(P.yaw),0,-Math.cos(P.yaw));right.set(Math.cos(P.yaw),0,-Math.sin(P.yaw));
@@ -1792,15 +1829,15 @@ function menuScene(dt){menuT+=dt;
  menuCats.forEach((m,i)=>{m.anim(dt,{speed:0,t:menuT+i*1.7,scale:m.inner.scale.x,crouch:m===menuCats[2]&&Math.sin(menuT*0.7)>0.6});m.g.rotation.y=Math.atan2(-m.g.position.x*0.3,8)+Math.sin(menuT*0.4+i)*0.25;});}
 function clearMenuCats(){menuCats.forEach(m=>disposeCat(m));menuCats.length=0;}
 let splatAcc=0;
-let frameN=0;renderer.shadowMap.autoUpdate=false;
-function frame(now){const rawDt=(now-lastTime)/1000,dt=Math.min(0.05,rawDt);lastTime=now;dynRes(Math.min(0.2,rawDt));renderer.shadowMap.needsUpdate=(frameN++%2===0);
+let frameN=0,shadowFrames=0;renderer.shadowMap.autoUpdate=false;
+function frame(now){const rawDt=(now-lastTime)/1000,dt=Math.min(0.05,rawDt);lastTime=now;dynRes(Math.min(0.2,rawDt));renderer.shadowMap.needsUpdate=(frameN++%2===0)||shadowFrames<3;if(!window.__noRender)shadowFrames++;
  ambient(dt,now);
  if(state==='menu'||(state==='over'&&!P)){menuScene(dt);if(LOBBY.on)lobbyScene(dt);}
  else{vm.visible=!window.__noVm;if(state==='play'||(state==='paused'&&NET.mode)){if(!window.__noUpd)update(dt);}else if(state==='over'||state==='upgrade'||state==='paused'||state==='wait'){updateFxAndGore(state==='paused'?0:dt*0.5);updateAvatar(dt);}if(P&&!window.__noHud)updateHud();}
  splatAcc+=dt;if(splatAcc>0.04||scrSplats.length===0){drawSplats(splatAcc);splatAcc=0;}
  if(window.__noRender){}else if(window.__noPost)renderer.render(scene,camera);else post.render(dt);
  requestAnimationFrame(frame);}
-setMusic(save.music);applyQuality();W.bakeEnv();showMenu();$('#loading').hidden=true;requestAnimationFrame(frame);
+setMusic(save.music);applyQuality();renderer.shadowMap.needsUpdate=true;W.bakeEnv();showMenu();$('#loading').hidden=true;requestAnimationFrame(frame);
 if(save.level===2&&save.lvOpen>=2)setLevel(2).then(()=>{if(state==='menu')renderMenuAll();});
 if(/[?&]dbg/.test(location.search))window.__dbg={keys,VMA,setLevel,gunModels,get vm(){return vm},get LEVEL(){return LEVEL},get strikes(){return strikes},get P(){return P},get enemies(){return enemies},spawnEnemy,camera,scene,renderer,startGame,get state(){return state},set state(v){state=v},get wave(){return wave},set queue(v){queue=v},set firing(v){firing=v},get kills(){return kills},get queue(){return queue},get spawnT(){return spawnT},get timeScale(){return timeScale},hitE,W,GUNS,switchGun,useAbility,triggerZed,melee,CHARS,save,rec,newRun,get zedT(){return zedT},get timeScaleV(){return timeScale},startReload,openUpgrade,pickUp,rec,get upOpts(){return upOpts},get coinsRun(){return coinsRun},set coinsRun(v){coinsRun=v},get projs(){return projs},get eprojs(){return eprojs},get pools(){return pools},get post(){return post},get NET(){return NET},get DIR(){return DIR},get MATES(){return MATES},tick(n,dt=1/60){for(let i=0;i<n;i++){if(window.__forcePlay&&state!=='play'){hideAll();state='play';}ambient(dt,performance.now());if(state==='play')update(dt);}if(P)updateHud();return [state,wave,enemies.filter(e=>!e.dead).length,queue.length];},snap(){if(window.__noPost)renderer.render(scene,camera);else post.render(0.016);return renderer.domElement.toDataURL('image/jpeg',0.85);}};
 if(/[?&]mock/.test(location.search))NET.local=true;

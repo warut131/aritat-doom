@@ -74,6 +74,24 @@ export function buildGuns() {
   M.pilot = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x5ab0ff, emissiveIntensity: 4 });
   M.nozzleHeat = new THREE.MeshStandardMaterial({ color: 0x3a3a3e, metalness: 1, roughness: 0.4, emissive: 0xff5a10, emissiveIntensity: 0 });
   const recoilBack = (t, dur, amt) => (t >= 0 && t < dur) ? (1 - t / dur) * amt : 0;
+  // ---- hand-driven reload: the support hand pulls the mag, swaps it off-screen, seats it, slaps it and works the bolt ----
+  const sm = t => t * t * (3 - 2 * t);
+  const kf = (k, keys) => { if (k <= keys[0][0]) return keys[0][1]; for (let i = 0; i < keys.length - 1; i++) { const a = keys[i], b = keys[i + 1]; if (k <= b[0]) { const f = sm((k - a[0]) / Math.max(1e-6, b[0] - a[0])); return a[1].map((v, j) => v + (b[1][j] - v) * f); } } return keys[keys.length - 1][1]; };
+  const vadd = (a, b) => a.map((v, i) => v + b[i]);
+  function magReloader(o) {
+    const rp = o.hand.position.toArray(), rr = [o.hand.rotation.x, o.hand.rotation.y, o.hand.rotation.z];
+    const mp = o.mag ? o.mag.position.toArray() : null, g = o.grab, d = o.drop, gr = o.gR || [1.15, 0, 0.35];
+    const P = [[0, rp], [0.12, g], [0.3, d], [0.44, vadd(d, [0.03, 0.04, 0])], [0.56, vadd(g, [0, -0.09, 0.01])], [0.6, g], [0.64, vadd(g, [0, 0.016, 0])], [0.7, g]];
+    const R = [[0, rr], [0.12, gr], [0.3, vadd(gr, [0.4, 0, 0.6])], [0.44, vadd(gr, [0.3, 0, 0.45])], [0.6, gr], [0.7, gr]];
+    if (o.bolt) { P.push([0.78, o.bolt], [0.84, vadd(o.bolt, o.pull)], [0.9, o.bolt]); R.push([0.78, o.bR || rr], [0.9, o.bR || rr]); }
+    P.push([1, rp]); R.push([1, rr]);
+    return k => {
+      if (k < 0) { o.hand.position.fromArray(rp); o.hand.rotation.set(rr[0], rr[1], rr[2]); if (mp) { o.mag.position.fromArray(mp); o.mag.rotation.set(0, 0, 0); } return 0; }
+      const p = kf(k, P), r = kf(k, R); o.hand.position.fromArray(p); o.hand.rotation.set(r[0], r[1], r[2]);
+      if (mp) { if (k > 0.12 && k < 0.6) { o.mag.position.set(mp[0] + p[0] - g[0], mp[1] + p[1] - g[1], mp[2] + p[2] - g[2]); o.mag.rotation.set((r[0] - gr[0]) * 0.6, 0, (r[2] - gr[2]) * 0.6); } else { o.mag.position.fromArray(mp); o.mag.rotation.set(0, 0, 0); } }
+      return o.bolt && k > 0.8 && k < 0.9 ? Math.sin((k - 0.8) / 0.1 * Math.PI) : 0;
+    };
+  }
   const magDrop = (k) => k < 0 ? 0 : k < 0.12 ? 0 : k < 0.3 ? (k - 0.12) / 0.18 : k < 0.55 ? 1 : k < 0.7 ? 1 - (k - 0.55) / 0.15 : 0;
 
   // ======================= 1. DESERT EAGLE .50 =======================
@@ -94,13 +112,15 @@ export function buildGuns() {
     const grip = new THREE.Mesh(extrude([[0.0, 0.0], [0.07, 0.0], [0.1, -0.13], [0.09, -0.15], [0.03, -0.15], [0.005, -0.03]], 0.036, 0.008), M.rubber); grip.position.set(0, -0.005, 0.0); g.add(grip);
     const mag = new THREE.Group(); g.add(mag); add(mag, G.rbox, M.dark, [0.032, 0.012, 0.06], [0, -0.155, 0.055]);
     const hr = hand(g, [0.005, -0.075, 0.075], [0.35, 0, -0.1], 1); watch(hr);
-    hand(g, [-0.035, -0.095, 0.06], [0.25, 0.5, 0.75], 0.9);
+    const hlD = hand(g, [-0.035, -0.095, 0.06], [0.25, 0.5, 0.75], 0.9);
+    add(g, G.box, M.dark, [0.008, 0.012, 0.02], [0.019, 0.03, 0.04]); for (let i = 0; i < 8; i++) add(grip, G.box, M.dark, [0.038, 0.002, 0.03], [0, -0.03 - i * 0.013, 0.045 - i * 0.003]);
+    const rlD = magReloader({ hand: hlD, mag, grab: [0.0, -0.205, 0.06], drop: [-0.14, -0.45, 0.14], gR: [1.35, 0, 0.25] });
     const mz = new THREE.Object3D(); mz.position.set(0, 0.036, -0.215); slide.add(mz);
     const ej = new THREE.Object3D(); ej.position.set(0.02, 0.05, -0.0); g.add(ej);
     g.scale.setScalar(1.45); g.position.set(-0.05, 0.085, 0.0);
     g.userData = { mz, ej, anim(st) {
-      slide.position.z = st.mag === 0 && st.reloadK < 0 ? 0.035 : recoilBack(st.shotT, 0.09, 0.04) + (st.reloadK > 0.8 ? (1 - st.reloadK) * 0.15 : 0);
-      mag.position.y = -magDrop(st.reloadK) * 0.25; mag.visible = !(st.reloadK > 0.28 && st.reloadK < 0.52);
+      const k = st.reloadK; rlD(k);
+      slide.position.z = st.mag === 0 && k < 0 ? 0.035 : recoilBack(st.shotT, 0.09, 0.04) + (k >= 0 && k < 0.86 && st.mag === 0 ? 0.035 : 0);
     } };
     guns.push(g);
   }
@@ -165,12 +185,16 @@ export function buildGuns() {
     add(g, G.rbox, M.rubber, [0.05, 0.13, 0.02], [0, -0.04, 0.505]);
     add(g, G.tor, M.blued, [0.026, 0.026, 0.026], [0, -0.04, 0.06], [0, Math.PI / 2, 0]);
     const bolt = add(g, G.box, M.steel, [0.016, 0.012, 0.03], [0.034, 0.015, 0.05]);    // charging handle
+    add(g, G.box, M.blued, [0.026, 0.008, 0.07], [0, 0.056, -0.15], [0.08, 0, 0]);                    // rear sight leaf
+    add(g, G.box, M.steel, [0.008, 0.03, 0.05], [0.027, -0.0, 0.08], [0, 0, 0.1]);                    // selector lever
+    for (let i = 0; i < 4; i++) for (const x of [-0.026, 0.026]) add(g, G.sph, M.steel, [0.004, 0.004, 0.002], [x, -0.02 + (i % 2) * 0.03, -0.1 + i * 0.07], [0, Math.PI / 2, 0]); // rivets
+    for (let i = 0; i < 5; i++) add(mag, G.box, M.dark, [0.034, 0.004, 0.06], [0, -0.035 - i * 0.034, -0.02 - i * 0.012], [-i * 0.11, 0, 0]);  // mag ribs
     hand(g, [0.0, -0.11, 0.13], [0.5, 0, -0.1], 1); const hl = hand(g, [-0.01, -0.06, -0.26], [0.25, 0, 0.15], 0.85); watch(hl);
+    const rlA = magReloader({ hand: hl, mag, grab: [0.0, -0.27, -0.14], drop: [-0.16, -0.52, -0.02], bolt: [0.075, 0.03, 0.05], pull: [0, 0, 0.075], bR: [0.3, 0, -1.3] });
     const mz = new THREE.Object3D(); mz.position.set(0, 0.005, -0.65); g.add(mz);
     const ej = new THREE.Object3D(); ej.position.set(0.03, 0.02, 0.0); g.add(ej);
     g.userData = { mz, ej, anim(st) {
-      bolt.position.z = 0.05 + recoilBack(st.shotT, 0.05, 0.05) + (st.reloadK > 0.75 && st.reloadK < 0.95 ? Math.sin((st.reloadK - 0.75) / 0.2 * Math.PI) * 0.07 : 0);
-      mag.position.y = -0.03 - magDrop(st.reloadK) * 0.3; mag.rotation.x = magDrop(st.reloadK) * 0.4; mag.visible = !(st.reloadK > 0.28 && st.reloadK < 0.5);
+      const pull = rlA(st.reloadK); bolt.position.z = 0.05 + recoilBack(st.shotT, 0.05, 0.05) + pull * 0.075;
     } };
     guns.push(g);
   }
@@ -224,12 +248,12 @@ export function buildGuns() {
     for (const x of [-0.025, 0.025]) add(g, G.cyl8, M.dark, [0.008, 0.26, 0.008], [x, -0.03, -0.55], [Math.PI / 2, 0, 0]); // folded bipod
     const bolt = add(g, G.box, M.steel, [0.025, 0.02, 0.03], [0.045, 0.02, 0.0]);
     hand(g, [0.0, -0.14, 0.17], [0.55, 0, -0.1], 1); const hl = hand(g, [0.0, -0.06, -0.3], [0.25, 0, 0.1], 0.8); watch(hl);
+    const rlB = magReloader({ hand: hl, mag, grab: [0.0, -0.2, -0.03], drop: [-0.18, -0.55, 0.06], bolt: [0.085, 0.03, 0.0], pull: [0, 0, 0.1], bR: [0.3, 0, -1.3] });
     const mz = new THREE.Object3D(); mz.position.set(0, 0.02, -1.04); g.add(mz);
     const ej = new THREE.Object3D(); ej.position.set(0.04, 0.03, -0.02); g.add(ej);
     g.scale.setScalar(0.85); g.position.set(0, -0.02, 0.06);
     g.userData = { mz, ej, anim(st) {
-      bolt.position.z = recoilBack(st.shotT, 0.12, 0.08) + (st.reloadK > 0.75 && st.reloadK < 0.95 ? Math.sin((st.reloadK - 0.75) / 0.2 * Math.PI) * 0.1 : 0);
-      mag.position.y = -0.08 - magDrop(st.reloadK) * 0.3; mag.visible = !(st.reloadK > 0.3 && st.reloadK < 0.52);
+      const pull = rlB(st.reloadK); bolt.position.z = recoilBack(st.shotT, 0.12, 0.08) + pull * 0.1;
     } };
     guns.push(g);
   }
@@ -277,11 +301,11 @@ export function buildGuns() {
     for (const x of [-0.03, 0.03]) add(g, G.box, M.steel, [0.006, 0.006, 0.22], [x, 0.0, 0.2]);   // wire stock
     add(g, G.box, M.steel, [0.066, 0.05, 0.008], [0, -0.01, 0.31]);
     hand(g, [0.0, -0.11, 0.06], [0.45, 0, -0.1], 1); const hl = hand(g, [-0.03, -0.08, -0.08], [0.2, 0.3, 0.5], 0.8); watch(hl);
+    const rlU = magReloader({ hand: hl, mag, grab: [0.0, -0.26, 0.05], drop: [-0.14, -0.5, 0.12], bolt: [0.0, 0.085, -0.01], pull: [0, 0, 0.06], bR: [-0.7, 0, 0.2] });
     const mz = new THREE.Object3D(); mz.position.set(0, 0.0, -0.25); g.add(mz);
     const ej = new THREE.Object3D(); ej.position.set(0.03, 0.03, -0.03); g.add(ej);
     g.scale.setScalar(1.15); g.position.set(-0.03, 0.05, 0);
-    g.userData = { mz, ej, anim(st) { knob.position.z = recoilBack(st.shotT, 0.04, 0.04) + (st.reloadK > 0.78 && st.reloadK < 0.95 ? Math.sin((st.reloadK - 0.78) / 0.17 * Math.PI) * 0.06 : 0);
-      mag.position.y = -0.04 - magDrop(st.reloadK) * 0.3; mag.visible = !(st.reloadK > 0.28 && st.reloadK < 0.5); } };
+    g.userData = { mz, ej, anim(st) { const pull = rlU(st.reloadK); knob.position.z = recoilBack(st.shotT, 0.04, 0.04) + pull * 0.06; } };
     guns.push(g);
   }
   // ======================= 8. M4 AUTO SHOTGUN =======================
@@ -299,10 +323,16 @@ export function buildGuns() {
     add(g, G.rbox, M.rubber, [0.05, 0.08, 0.28], [0, -0.02, 0.32]); add(g, G.rbox, M.rubber, [0.06, 0.13, 0.03], [0, -0.04, 0.47]);
     add(g, G.tor, M.dark, [0.026, 0.026, 0.026], [0, -0.045, 0.06], [0, Math.PI / 2, 0]);
     hand(g, [0.0, -0.11, 0.14], [0.5, 0, -0.1], 1); const hl = hand(g, [-0.01, -0.07, -0.24], [0.25, 0, 0.12], 0.85); watch(hl);
+    for (const z of [0.07, -0.02]) add(g, G.tor, M.dark, [0.012, 0.012, 0.012], [0, 0.07, z], [0, 0, 0]); add(g, G.box, M.dark, [0.004, 0.02, 0.004], [0, 0.065, -0.57]);
+    const hlP = hl.position.toArray(), hlR = [hl.rotation.x, hl.rotation.y, hl.rotation.z];
     const mz = new THREE.Object3D(); mz.position.set(0, 0.018, -0.6); g.add(mz);
     const ej = new THREE.Object3D(); ej.position.set(0.035, 0.02, -0.02); g.add(ej);
     g.userData = { mz, ej, anim(st) { const k = st.reloadK; bolt.position.z = -0.02 + recoilBack(st.shotT, 0.07, 0.05) + (k > 0.85 ? Math.sin((k - 0.85) / 0.15 * Math.PI) * 0.06 : 0);
-      const f = k >= 0 ? (k * 4) % 1 : -1; shell.visible = k >= 0 && k < 0.82 && f > 0.1 && f < 0.85; shell.position.z = 0.02 + Math.max(0, 0.6 - f) * 0.3; } };
+      if (k < 0 || k > 0.86) { const r = k > 0.86 ? sm((k - 0.86) / 0.14) : 1; hl.position.set(hlP[0] * r + (1 - r) * -0.02, hlP[1] * r + (1 - r) * -0.2, hlP[2] * r + (1 - r) * 0.0); hl.rotation.set(hlR[0], hlR[1], hlR[2]); shell.visible = false; return; }
+      const c = Math.min(3.999, (k - 0.02) / 0.21), f = c - Math.floor(c), up = f < 0.45 ? sm(f / 0.45) : 1, push = f > 0.55 ? sm(Math.min(1, (f - 0.55) / 0.3)) : 0;
+      const hx = -0.02 - (1 - up) * 0.1, hy = -0.32 + up * 0.2, hz = 0.0 + (1 - up) * 0.06 - push * 0.07;
+      hl.position.set(hx, hy, hz); hl.rotation.set(1.3, 0, 0.25 + (1 - up) * 0.5);
+      shell.visible = f > 0.05 && f < 0.85; shell.position.set(hx + 0.01, hy + 0.06, hz - 0.03); shell.rotation.set(0, 0, 0); } };
     guns.push(g);
   }
   // ======================= 9. M60 =======================
@@ -321,11 +351,11 @@ export function buildGuns() {
     const grip = new THREE.Mesh(extrude([[0, 0], [0.05, 0], [0.08, -0.12], [0.04, -0.13], [0.01, -0.03]], 0.04, 0.008), M.rubber); grip.position.set(0, -0.04, 0.12); g.add(grip);
     add(g, G.rbox, M.rubber, [0.055, 0.09, 0.3], [0, -0.03, 0.32]); add(g, G.rbox, M.rubber, [0.065, 0.15, 0.03], [0, -0.04, 0.48]);
     hand(g, [0.0, -0.12, 0.16], [0.5, 0, -0.1], 1); const hl = hand(g, [-0.02, -0.07, -0.3], [0.25, 0, 0.15], 0.85); watch(hl);
+    const rlM = magReloader({ hand: hl, mag: box, grab: [-0.1, -0.16, -0.02], drop: [-0.25, -0.55, 0.05], bolt: [0.0, 0.1, 0.06], pull: [0, -0.035, 0], bR: [-0.9, 0, 0.1] });
     const mz = new THREE.Object3D(); mz.position.set(0, 0.012, -0.84); g.add(mz);
     const ej = new THREE.Object3D(); ej.position.set(0.04, 0.0, 0.0); g.add(ej);
     g.scale.setScalar(0.92); g.position.set(0, -0.01, 0.05);
-    g.userData = { mz, ej, anim(st) { const k = st.reloadK; cover.rotation.x = k > 0.2 && k < 0.8 ? -Math.min(1, (k - 0.2) * 6, (0.8 - k) * 6) * 1.1 : 0;
-      box.visible = !(k > 0.3 && k < 0.55); box.position.y = -0.06 - (k > 0.15 && k < 0.6 ? Math.sin((k - 0.15) / 0.45 * Math.PI) * 0.15 : 0);
+    g.userData = { mz, ej, anim(st) { const k = st.reloadK; rlM(k); cover.rotation.x = k > 0.06 && k < 0.86 ? -Math.min(1, (k - 0.06) * 8, (0.86 - k) * 12) * 1.15 : 0;
       belt.forEach((b, i) => b.visible = k >= 0 ? k > 0.6 : i < Math.ceil((st.mag || 0) / 10)); } };
     guns.push(g);
   }
@@ -342,9 +372,15 @@ export function buildGuns() {
     const grip = new THREE.Mesh(extrude([[0, 0], [0.05, 0], [0.08, -0.12], [0.04, -0.13], [0.01, -0.03]], 0.04, 0.008), M.wood); grip.position.set(0, -0.005, 0.02); g.add(grip);
     const grip2 = new THREE.Mesh(extrude([[0, 0], [0.04, 0], [0.06, -0.1], [0.03, -0.11]], 0.035, 0.008), M.wood); grip2.position.set(0, -0.005, -0.26); g.add(grip2);
     hand(g, [0.0, -0.08, 0.06], [0.5, 0, -0.1], 1); const hl = hand(g, [0.0, -0.08, -0.22], [0.45, 0, 0.0], 0.95); watch(hl);
+    const rP = hl.position.toArray(), rR = [hl.rotation.x, hl.rotation.y, hl.rotation.z];
+    const HK = [[0, rP], [0.25, [-0.2, -0.45, -0.3]], [0.42, [-0.12, -0.25, -0.75]], [0.55, [0.0, -0.06, -0.98]], [0.66, [0.0, -0.06, -0.74]], [0.75, [0.0, -0.06, -0.74]], [1, rP]];
+    const HR = [[0, rR], [0.25, [0.9, 0, 0.6]], [0.55, [0.6, 0, 0.1]], [0.75, [0.6, 0, 0.1]], [1, rR]];
     const mz = new THREE.Object3D(); mz.position.set(0, 0.03, -0.62); g.add(mz);
     g.position.set(0.06, -0.03, -0.12); g.scale.setScalar(0.9);
-    g.userData = { mz, anim(st) { const k = st.reloadK; war.visible = k >= 0 ? k > 0.5 : (st.mag || 0) > 0; war.position.z = -0.62 - (k > 0.5 && k < 0.85 ? (0.85 - k) * 1.2 : 0); } };
+    g.userData = { mz, anim(st) { const k = st.reloadK;
+      if (k < 0) { hl.position.fromArray(rP); hl.rotation.set(rR[0], rR[1], rR[2]); war.position.set(0, 0.03, -0.62); war.visible = (st.mag || 0) > 0; return; }
+      const p = kf(k, HK), r = kf(k, HR); hl.position.fromArray(p); hl.rotation.set(r[0], r[1], r[2]);
+      war.visible = k > 0.25; if (k < 0.66) war.position.set(p[0], p[1] + 0.09, p[2] - 0.12); else war.position.set(0, 0.03, -0.62); } };
     guns.push(g);
   }
   // ======================= 11-13. MELEE: machete, katana, sledgehammer =======================
