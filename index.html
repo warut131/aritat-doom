@@ -62,6 +62,13 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--void);color:var(
 #feed div{background:rgba(20,6,6,.72);border:1px solid rgba(255,80,60,.2);padding:3px 8px;border-radius:4px;animation:fade 3s forwards}
 #feed b{color:var(--ember)}#feed em{color:var(--blood);font-style:normal;font-weight:700}
 @keyframes fade{0%,75%{opacity:1}100%{opacity:0}}
+#achToast{position:fixed;top:14px;left:50%;transform:translate(-50%,-140%);z-index:80;display:flex;gap:12px;align-items:center;padding:10px 18px;border-radius:12px;background:linear-gradient(90deg,#2a1a08,#3a2410);border:2px solid #ffc860;box-shadow:0 8px 30px rgba(0,0,0,.6),0 0 24px rgba(255,200,96,.3);color:var(--bone);transition:transform .35s cubic-bezier(.2,1.4,.4,1);pointer-events:none;max-width:92vw}
+#achToast.on{transform:translate(-50%,0)}#achToast .ai{font-size:30px}#achToast b{display:block;font:700 16px var(--font-th);color:#ffd166}#achToast small{font-size:12.5px;color:var(--ash)}
+.achs{display:grid;gap:8px}
+.ach{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-radius:10px;background:#1a0e0c;border:1px solid #3a2420}
+.ach.ok{border-color:#9be15d55;background:#142010}.ach .ai{font-size:26px}.ach .at{display:grid;gap:3px}.ach .at b{font:700 15px var(--font-th)}.ach .at small{font-size:12px;color:var(--ash)}
+.ach .at i{display:block;height:6px;border-radius:3px;background:#2a1a16;position:relative;overflow:hidden}.ach .at i::after{content:"";position:absolute;inset:0;width:calc(var(--k)*100%);background:linear-gradient(90deg,#ff7a1a,#ffd166)}
+.ach.ok .at i::after{background:#9be15d}.ach .ar{font:700 14px var(--font-ui);color:#ffd166;white-space:nowrap}
 #banner{position:absolute;top:19%;left:0;right:0;text-align:center;font-family:var(--font-logo);font-size:clamp(40px,8vw,76px);color:var(--blood);text-shadow:0 4px 0 #2a0000,0 0 34px rgba(255,40,20,.55);opacity:0;transition:opacity .25s;line-height:1.05}
 #banner small{display:block;font-family:var(--font-th);font-size:.3em;color:var(--bone);text-shadow:0 2px 0 #000;margin-top:6px}
 #hint{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 110px);left:0;right:0;text-align:center;font-size:14px;color:var(--ash)}
@@ -321,6 +328,13 @@ body.touch #magNum{font-size:40px}
 .lv small{font:700 13px var(--font-th);color:#ffd9a8}
 .lv.l1{background:radial-gradient(ellipse at 70% 20%,#ff5a1a55,transparent 60%),linear-gradient(180deg,#3a1010,#120606)}
 .lv.l2{background:radial-gradient(circle at 75% 25%,#000 6%,#ffb04a 7%,#ff7a1a33 14%,transparent 40%),linear-gradient(180deg,#4a2060,#a0502a 70%,#2a1418)}
+.lv.l3{background:radial-gradient(circle at 72% 28%,#ff3a2a 6%,#c0102a55 12%,transparent 34%),linear-gradient(180deg,#1a1030,#5a1a3a 70%,#1a0a14)}
+h4.sub{margin:14px 0 8px;font:700 15px var(--font-th);color:var(--ash)}
+.dfs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.df{border:2px solid #3a2420;border-radius:10px;padding:10px;display:grid;gap:4px;text-align:left;background:#1a0e0c;color:var(--bone);cursor:pointer;font-family:var(--font-ui)}
+.df b{font:700 15px var(--font-th)}.df small{font-size:11.5px;color:var(--ash);line-height:1.35}
+.df.sel{border-color:#ff5a3a;box-shadow:0 0 16px rgba(255,90,58,.35)}.df.lock{filter:grayscale(.8) brightness(.6);cursor:not-allowed}
+@media (max-width:700px){.dfs{grid-template-columns:1fr}}
 .lv.sel{border-color:#ffd166;box-shadow:0 0 22px rgba(255,209,102,.35)}
 .lv.lock{filter:grayscale(.8) brightness(.6);cursor:not-allowed}
 .lv .tag{position:absolute;top:10px;right:12px;font:700 12px var(--font-th);color:#ffd166}
@@ -472,7 +486,7 @@ body.touch #magNum{font-size:40px}
   <header class="topbar">
     <div class="logo">ARITAT<small>ซอยนรก</small></div>
     <nav class="mtabs" role="tablist">
-      <button class="mtab on" data-t="play">เล่น</button><button class="mtab" data-t="ch">ตัวละคร</button><button class="mtab" data-t="pk">อาชีพ</button><button class="mtab" data-t="gun">อาวุธ</button><button class="mtab" data-t="shop">ร้านค้า</button><button class="mtab" data-t="lb">อันดับ</button><button class="mtab" data-t="how">ตั้งค่า</button>
+      <button class="mtab on" data-t="play">เล่น</button><button class="mtab" data-t="ch">ตัวละคร</button><button class="mtab" data-t="pk">อาชีพ</button><button class="mtab" data-t="gun">อาวุธ</button><button class="mtab" data-t="shop">ร้านค้า</button><button class="mtab" data-t="ach">ภารกิจ</button><button class="mtab" data-t="lb">อันดับ</button><button class="mtab" data-t="how">ตั้งค่า</button>
     </nav>
     <div class="tbr"><button class="acctb" id="acctBtn">👤 เข้าสู่ระบบ</button><span class="coins" id="menuCoins"></span></div>
   </header>
@@ -484,6 +498,7 @@ body.touch #magNum{font-size:40px}
     <div class="mpane" id="pane-play">
       <h3 class="ph">เลือกด่าน</h3>
       <div id="lvList" class="lvs"></div>
+      <h4 class="sub">ความยาก</h4><div id="diffList" class="dfs"></div>
       <div id="menuSum" class="msum"></div>
       <p class="hint" id="bestLine"></p>
     </div>
@@ -500,9 +515,14 @@ body.touch #magNum{font-size:40px}
       <div id="gunList" class="gunlist"></div>
     </div>
     <div class="mpane" id="pane-shop" hidden><h3 class="ph">ร้านอัปเกรดถาวร</h3><p class="hint">ใช้ได้ทุกรอบ ทุกตัวละคร</p><div id="shopHost" class="cards shop"></div></div>
+    <div class="mpane" id="pane-ach" hidden>
+      <h3 class="ph">ภารกิจ · ความสำเร็จ</h3>
+      <p class="hint" id="achSum"></p>
+      <div id="achList" class="achs"></div>
+    </div>
     <div class="mpane" id="pane-lb" hidden>
       <h3 class="ph">อันดับผู้เล่น</h3>
-      <div class="btns"><button class="b alt tab" id="lbLv1">ด่าน 1</button><button class="b alt tab" id="lbLv2">ด่าน 2</button><span style="flex:1"></span><button class="b alt tab" id="lbTabG">ทุกคน</button><button class="b alt tab" id="lbTabL">ของฉัน</button></div>
+      <div class="btns"><button class="b alt tab" id="lbLv1">ด่าน 1</button><button class="b alt tab" id="lbLv2">ด่าน 2</button><button class="b alt tab" id="lbLv3">ด่าน 3</button><span style="flex:1"></span><button class="b alt tab" id="lbTabG">ทุกคน</button><button class="b alt tab" id="lbTabL">ของฉัน</button></div>
       <div id="lbBody"></div>
     </div>
     <div class="mpane" id="pane-how" hidden>
@@ -532,6 +552,7 @@ body.touch #magNum{font-size:40px}
   </div>
 </div>
 
+<div id="achToast" role="status" aria-live="polite"></div>
 <div id="acct" class="overlay" hidden>
   <div class="panel acctp">
     <h2>บัญชีผู้เล่น</h2>

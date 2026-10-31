@@ -50,7 +50,7 @@ class Builder {
   box(mat, w, h, d, x, y, z, ry = 0, color = 0xffffff, texScale = 4, rx = 0, rz = 0) {
     const g = new THREE.BoxGeometry(w, h, d);
     const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(1, 1, 1));
-    g.applyMatrix4(m); worldUV(g, texScale); tint(g, color); this.add(mat, g); return g;
+    g.applyMatrix4(m); worldUV(g, texScale || 1); tint(g, color); this.add(mat, g); return g;
   }
   geo(mat, g, matrix, color = 0xffffff, texScale = 0) {
     if (matrix) g.applyMatrix4(matrix);

@@ -305,6 +305,9 @@ DEF.c_khlang = { style: 'staff', build() {
   return r; },
   inst(R) { const s = sprite('140,220,255', 0.5, 0.5, 0.7); s.position.set(0, -0.06, 1.05); R.J.haR.add(s); } };
 
+// other levels register their rigged models here (they share the template cache / instancing below)
+export function defineModel(name, def) { DEF[name] = def; }
+
 // ------------------------------------------------------------------ template cache + instancing
 const TPL = {};
 function template(type) { if (!TPL[type]) { const rg = DEF[type].build(); TPL[type] = rg.build(); TPL[type].ik = rg.ik; } return TPL[type]; }

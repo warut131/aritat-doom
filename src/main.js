@@ -3,6 +3,8 @@ import { Peer } from 'peerjs';
 import { MockPeer } from './mockpeer.js';
 import { buildWorld, preloadTextures, A, srg, srnd, setSeed } from './world.js';
 import { buildRome, preloadRome } from './rome.js';
+import { buildShrine, preloadShrine } from './shrine.js';
+import { buildKasa } from './yokai.js';
 import { buildRoman, buildCharacter, poseHuman } from './roman.js';
 import { loadCats, makeCat as buildCat } from './cat.js';
 import { buildRat, buildKrasue } from './enemies.js';
@@ -318,10 +320,59 @@ $('#loading').textContent='กำลังสร้างซอยนรก…';
 await Promise.all([preloadTextures(),loadCats('assets/'),document.fonts?document.fonts.ready:0]);
 let W=buildWorld(scene,renderer,save.quality);const WORLDS={1:W};let LEVEL=1;
 const statics=W.statics.slice(),obstacles=W.obstacles.slice();
-const LEVELS={1:{name:'ซอยนรก',sub:'ด่าน 1 · แมวปีศาจ',need:0},2:{name:'สนามเทพแห่งยมโลก',sub:'ด่าน 2 · ทวยเทพโรมัน',need:10}};
+const LEVELS={1:{name:'ซอยนรก',sub:'ด่าน 1 · แมวปีศาจ',need:0},2:{name:'สนามเทพแห่งยมโลก',sub:'ด่าน 2 · ทวยเทพโรมัน',need:10,from:1},3:{name:'ศาลเจ้าโยไค',sub:'ด่าน 3 · อสูรญี่ปุ่น',need:10,from:2}};
+const LV_MUL={1:1,2:1.5,3:2};const LV_IDS=[1,2,3];
+// difficulty tiers: unlocked by reaching wave 15 (any level) on the tier below
+const DIFFS=[{n:'ปกติ',ic:'🙂',hp:1,dmg:1,spd:1,coin:1,xp:1,elite:0,cnt:1,d:'ความยากมาตรฐาน'},
+ {n:'โหด',ic:'😈',hp:1.6,dmg:1.35,spd:1.08,coin:1.6,xp:1.5,elite:0.08,cnt:1.15,d:'ศัตรูเลือด ×1.6 ตีแรง ×1.35 มาเยอะขึ้น มีตัวโหดพิเศษปน · เหรียญ ×1.6 XP ×1.5'},
+ {n:'นรกขุม 8',ic:'💀',hp:2.4,dmg:1.75,spd:1.15,coin:2.5,xp:2,elite:0.2,cnt:1.3,d:'ศัตรูเลือด ×2.4 ตีแรง ×1.75 วิ่งไว มาเยอะมาก ตัวโหดพิเศษเพียบ · เหรียญ ×2.5 XP ×2'}];
+const DIFF_NEED=15;if(save.diffOpen===undefined)save.diffOpen=0;if(save.diff===undefined||save.diff>save.diffOpen)save.diff=0;
+let runDiff=0;const RD=()=>DIFFS[runDiff]||DIFFS[0];
+// ---- achievements: long-term goals that pay coins once ----
+if(!save.st)save.st={};if(!save.ach)save.ach={};if(!save.bestD)save.bestD={};
+const ST=k=>save.st[k]||0;
+const ACH=[
+ ['k1','นักล่ามือใหม่','🗡️','ไล่ศัตรูไป 1,000 ตัว',()=>ST('kills'),1000,600],
+ ['k2','เพชฌฆาตซอยนรก','⚔️','ไล่ศัตรูไป 5,000 ตัว',()=>ST('kills'),5000,2500],
+ ['k3','ยมทูตส่วนตัว','☠️','ไล่ศัตรูไป 20,000 ตัว',()=>ST('kills'),20000,9000],
+ ['b1','ล้มยักษ์','👹','ฆ่าบอส 5 ตัว',()=>ST('boss'),5,1000],
+ ['b2','นักล่าเทพ','⚡','ฆ่าบอส 25 ตัว',()=>ST('boss'),25,4000],
+ ['b3','จุดจบของทวยเทพ','👑','ฆ่าบอส 100 ตัว',()=>ST('boss'),100,12000],
+ ['h1','ตาเหยี่ยว','🎯','ยิงหัวฆ่า 500 ครั้ง',()=>ST('heads'),500,900],
+ ['h2','มือปืนเทวดา','🔭','ยิงหัวฆ่า 3,000 ครั้ง',()=>ST('heads'),3000,3500],
+ ['g1','โชว์ฟาด','✊','กลอรี่คิล 100 ครั้ง',()=>ST('gk'),100,900],
+ ['g2','ฟาดจนเป็นตำนาน','💥','กลอรี่คิล 500 ครั้ง',()=>ST('gk'),500,3500],
+ ['m1','สายฟันไม่ง้อปืน','🔪','ฆ่าด้วยอาวุธประชิด 300 ตัว',()=>ST('melee'),300,900],
+ ['m2','ซามูไรซอยนรก','🗡️','ฆ่าด้วยอาวุธประชิด 1,500 ตัว',()=>ST('melee'),1500,3500],
+ ['x1','สายระเบิดภูเขา','🧨','ฆ่าด้วยระเบิด 500 ตัว',()=>ST('boom'),500,1500],
+ ['w1','ทนทายาด','🛡️','เคลียร์เวฟรวม 100 เวฟ',()=>ST('waves'),100,1200],
+ ['w2','อมตะ','♾️','เคลียร์เวฟรวม 500 เวฟ',()=>ST('waves'),500,5000],
+ ['s1','รอดเวฟพิเศษ','⚠️','ผ่านเวฟพิเศษ 1 ครั้ง',()=>ST('spec'),1,600],
+ ['s2','เจ้าแห่งเวฟพิเศษ','🌋','ผ่านเวฟพิเศษ 10 ครั้ง',()=>ST('spec'),10,4000],
+ ['l1','เจ้าถิ่นซอยนรก','🐈','ด่าน 1 ไปถึงเวฟ 20',()=>save.bestLv[1]||0,20,1500],
+ ['l2','ผู้พิชิตโรม','🏛️','ด่าน 2 ไปถึงเวฟ 20',()=>save.bestLv[2]||0,20,3000],
+ ['l3','ผู้ปราบอสูร','⛩️','ด่าน 3 ไปถึงเวฟ 20',()=>save.bestLv[3]||0,20,5000],
+ ['l4','ตำนานศาลเจ้า','🏯','ด่าน 3 ไปถึงเวฟ 30',()=>save.bestLv[3]||0,30,12000],
+ ['d1','ใจถึง','😈','ระดับโหด ไปถึงเวฟ 15',()=>save.bestD[1]||0,15,3000],
+ ['d2','ลงนรกขุม 8','💀','ระดับนรกขุม 8 ไปถึงเวฟ 15',()=>save.bestD[2]||0,15,8000],
+ ['d3','ราชาแห่งนรก','🔥','ระดับนรกขุม 8 ไปถึงเวฟ 25',()=>save.bestD[2]||0,25,25000],
+ ['c1','คลังแสงส่วนตัว','🔫','มีอาวุธครบทุกชิ้น',()=>(save.guns||[]).length,()=>GUNS.length,2500],
+ ['c2','รวมพลคนซอย','👥','ปลดล็อกตัวละครครบ',()=>(save.chars||[]).length,()=>CHARS.length,2500],
+ ['p1','ปรมาจารย์','📜','อาชีพใดก็ได้ถึงเลเวล 10',()=>Math.max(...PERKS.map(p=>perkLv(p.id))),10,4000],
+ ['p2','รู้ทุกศาสตร์','🎓','ทุกอาชีพถึงเลเวล 10',()=>PERKS.filter(p=>perkLv(p.id)>=10).length,()=>PERKS.length,20000],
+ ['r1','ขาประจำ','🎮','เล่นครบ 50 รอบ',()=>save.runs||0,50,1000],
+ ['r2','ติดนรก','🕹️','เล่นครบ 300 รอบ',()=>save.runs||0,300,5000],
+ ['$1','เศรษฐีนรก','💰','หาเหรียญได้รวม 100,000',()=>ST('coins'),100000,5000],
+].map(([id,n,ic,d,f,g,rw])=>({id,n,ic,d,f,g,rw,get goal(){return typeof this.g==='function'?this.g():this.g;}}));
+function stAdd(k,n=1){save.st[k]=(save.st[k]||0)+n;}
+let achQ=[],achT=0;
+function checkAch(){let got=0;for(const a of ACH){if(save.ach[a.id])continue;let v=0;try{v=a.f();}catch(e){}if(v>=a.goal){save.ach[a.id]=Date.now();save.coins+=a.rw;got++;achQ.push(a);}}
+ if(got){persist();achToast();if(typeof renderAch==='function'&&menuTab==='ach')renderAch();}}
+function achToast(){const el=$('#achToast');if(!el||achT>0||!achQ.length)return;const a=achQ.shift();el.innerHTML=`<span class="ai">${a.ic}</span><span><b>ความสำเร็จ: ${a.n}</b><small>${a.d} · +${a.rw.toLocaleString()} เหรียญ</small></span>`;el.classList.add('on');S.rank&&S.rank(4);achT=3.4;}
+setInterval(()=>{if(achT>0){achT-=0.25;if(achT<=0){$('#achToast').classList.remove('on');setTimeout(achToast,450);}}},250);
 if(!save.lvOpen)save.lvOpen=1;if(!save.bestLv)save.bestLv={};if(save.lvOpen<2&&Math.max(save.best.wave||0,save.bestLv[1]||0)>10)save.lvOpen=2;
-async function setLevel(lv){lv=lv===2?2:1;if(LEVEL===lv&&WORLDS[lv])return;
- if(!WORLDS[lv]){if(!setLevel.p)setLevel.p=(async()=>{$('#loading').hidden=false;$('#loading').textContent='กำลังเปิดสนามเทพแห่งยมโลก…';await preloadRome();await new Promise(r=>setTimeout(r,30));const w=buildRome(scene,renderer,save.quality);w.root.visible=false;w.setLightCount(LIGHTS_Q[save.quality]);w.setShadows(save.quality!=='low');w.onFlash=()=>{if(AC&&!muted&&state!=='menu'){S.boom(0.5);}};WORLDS[2]=w;})();await setLevel.p;if(LEVEL===lv)return;}
+async function setLevel(lv){lv=LV_IDS.includes(lv)?lv:1;if(LEVEL===lv&&WORLDS[lv])return;
+ if(!WORLDS[lv]){setLevel.p=setLevel.p||{};if(!setLevel.p[lv])setLevel.p[lv]=(async()=>{$('#loading').hidden=false;$('#loading').textContent=lv===2?'กำลังเปิดสนามเทพแห่งยมโลก…':'กำลังเปิดศาลเจ้าโยไค…';if(lv===2)await preloadRome();else await preloadShrine();await new Promise(r=>setTimeout(r,30));const w=lv===2?buildRome(scene,renderer,save.quality):buildShrine(scene,renderer,save.quality);w.root.visible=false;w.setLightCount(LIGHTS_Q[save.quality]);w.setShadows(save.quality!=='low');w.onFlash=()=>{if(AC&&!muted&&state!=='menu'){S.boom(0.5);}};WORLDS[lv]=w;})();await setLevel.p[lv];if(LEVEL===lv)return;}
  for(const k in WORLDS)WORLDS[k].root.visible=(+k===lv);
  W=WORLDS[lv];LEVEL=lv;scene.fog=W.fog;scene.background=W.bg;W.setShadows(save.quality!=='low');
  for(const b of barrels.slice())removeBarrel(b);barrels.length=0;
@@ -421,9 +472,19 @@ const CATS={
  lemure:   {name:'วิญญาณลีมูเรส',rom:1,eye:0x6affd0,model:'lemure',kind:'lemure',ai:'lemure',hp:20,spd:11.5,dmg:16,s:1.1,coin:0,fly:true,hy:1.0,rad:0.3,body:0xe8dcc0,dark:0x2a4a40,belly:0x6affd0},
  bossMars:   {name:'มาร์ส เทพแห่งสงคราม',rom:1,eye:0xff2a0a,model:'mars',kind:'god',boss:true,tip:'หลบหอกที่ขว้างมา · มันพุ่งชนเป็นเส้นตรง',hp:5600,spd:5.4,dmg:34,s:2.3,coin:80,hy:1.2,rad:0.5,reach:2.4,body:0xb47a50,dark:0x9a1010,belly:0xd8a040},
  bossJupiter:{name:'จูปิเตอร์ ราชาแห่งทวยเทพ',rom:1,eye:0x6ad8ff,model:'jupiter',kind:'god',boss:true,fly:true,tip:'ออกจากวงสายฟ้าก่อนฟ้าผ่า',hp:5000,spd:5.2,dmg:28,s:2.3,coin:80,hy:1.2,rad:0.5,body:0xd8b08a,dark:0xece4d4,belly:0x8ae8ff},
+ // ---- level 3: the yokai shrine ----
+ oni:      {name:'ยักษ์โอนิ',rom:1,eye:0xffe23a,model:'oni',kind:'beast',hp:130,spd:6.4,dmg:18,s:1.15,coin:3,hy:1.2,rad:0.48,reach:2.2,body:0xb8301c,dark:0x14100e,belly:0xd89a2a},
+ samurai:  {name:'ซามูไรโครงกระดูก',rom:1,eye:0xff3a2a,model:'samurai',kind:'skel',ai:'dog',hp:150,spd:7.4,dmg:20,s:1.05,coin:4,armor:true,hy:1.2,rad:0.42,reach:2.3,body:0xd2c8b0,dark:0x1a0c0c,belly:0x8a1410},
+ ninja:    {name:'นินจาเงา',rom:1,eye:0xff2a2a,model:'ninja',kind:'man',ai:'ninja',hp:60,spd:10.5,dmg:11,s:1,coin:2,hy:1.2,rad:0.4,reach:1.6,body:0x14141a,dark:0xa01418,belly:0xc8946a},
+ kitsune:  {name:'มิโกะจิ้งจอก',rom:1,eye:0xffa020,model:'kitsune',kind:'harpy',ai:'khao',pk:'fox',hp:70,spd:6.6,dmg:14,s:1,coin:3,hy:1.2,rad:0.4,body:0xf2eee8,dark:0xc0181a,belly:0xf0b060},
+ tengu:    {name:'เทนงุอีกา',rom:1,eye:0xffd23f,model:'tengu',kind:'harpy',ai:'bat',hp:55,spd:10,dmg:12,s:1,coin:2,fly:true,wings:true,hy:1.2,rad:0.45,flyOff:-0.6,body:0x14141c,dark:0x3a4a6a,belly:0xb01a1a},
+ kasa:     {name:'ร่มผีคาสะ',kind:'kasa',model:'kasa',ai:'rat',hp:24,spd:10.5,dmg:7,s:1.1,coin:0,hy:1.0,rad:0.4,body:0x7a2a9a,dark:0x2a1a10,belly:0xf8f4ee,eye:0xffe020},
+ bossOni:    {name:'ชูเท็นโดจิ ราชาโอนิ',rom:1,eye:0xff3a10,model:'oniking',kind:'god',boss:true,ai:'bossOni',tip:'หลบตอนมันพุ่งชน · กระโดดหลบคลื่นกระแทก · ระวังก้อนหินที่มันขว้าง',hp:7000,spd:5.6,dmg:36,s:2.3,coin:110,hy:1.2,rad:0.55,reach:2.8,body:0x2a3a8a,dark:0xc8963a,belly:0xe8e4dc},
+ bossRaijin: {name:'ไรจิน เทพสายฟ้า',rom:1,eye:0x8ae8ff,model:'raijin',kind:'god',boss:true,fly:true,ai:'bossJupiter',summon:'tengu',tip:'ออกจากวงสายฟ้าก่อนฟ้าผ่า · ยิงเทนงุที่มันเรียกมาให้ไว',hp:6400,spd:5.4,dmg:30,s:2.2,coin:110,hy:1.2,rad:0.5,body:0x3a8a6a,dark:0x8a1a12,belly:0x8ae8ff},
+ bossTamamo: {name:'ทามาโมะ จิ้งจอกเก้าหาง',rom:1,eye:0xffb020,model:'tamamo',kind:'god',boss:true,ai:'bossPluto',summon:['kitsune','kasa','kasa'],pk:'fox',tip:'มันวาร์ปได้ · หลบไฟจิ้งจอกสีฟ้า · อย่ายืนในกองไฟ',hp:6800,spd:4.8,dmg:30,s:2.1,coin:110,hy:1.2,rad:0.5,reach:2.8,body:0xf4c070,dark:0x3a1a5a,belly:0x8ad8ff},
  bossPluto:  {name:'พลูโต เจ้าแห่งยมโลก',rom:1,eye:0xc070ff,model:'pluto',kind:'god',boss:true,tip:'มันวาร์ปได้ · อย่ายืนในไฟวิญญาณสีม่วง',hp:5400,spd:4.6,dmg:30,s:2.3,coin:80,hy:1.2,rad:0.5,reach:2.6,body:0x8a92a0,dark:0x1c1424,belly:0xb04aff},
 };
-function makeCat(type){const C=CATS[type];return C.rom?buildRoman(C):C.kind==='rat'?buildRat(C):C.kind==='krasue'?buildKrasue(C):buildCat(type,C);}
+function makeCat(type){const C=CATS[type];return C.kind==='kasa'?buildKasa(C):C.rom?buildRoman(C):C.kind==='rat'?buildRat(C):C.kind==='krasue'?buildKrasue(C):buildCat(type,C);}
 const HY=e=>(e.C.hy||0.65)*e.s;
 
 /* ======================= WEAPONS / VIEWMODEL ======================= */
@@ -543,7 +604,13 @@ function buildWave(n){const q=[],total=Math.round((6+n*3.4)*(1+0.5*(pN()-1)));co
  let tot=0;for(const p of pool)tot+=p[1];
  for(let i=0;i<total;i++){let r=Math.random()*tot,t='tabby';for(const p of pool){r-=p[1];if(r<=0){t=p[0];break;}}if(t==='kitten')q.push('kitten','kitten','kitten');else if(t==='rat')q.push('rat','rat','rat','rat','rat');else if(t==='dog')q.push('dog','dog');else q.push(t);}
  if(n%5===0)q.splice(Math.min(4,q.length),0,bossFor(n));return q;}
-function bossFor(n){return (LEVEL===2?['bossMars','bossJupiter','bossPluto']:['boss','bossDog','bossKrasue'])[(Math.round(n/5)-1)%3];}
+function bossFor(n){return (LEVEL===3?['bossOni','bossRaijin','bossTamamo']:LEVEL===2?['bossMars','bossJupiter','bossPluto']:['boss','bossDog','bossKrasue'])[(Math.round(n/5)-1)%3];}
+function buildWave3(n){const q=[],total=Math.round((8+n*3.8)*(1+0.5*(pN()-1)));const pool=[['oni',10]];
+ if(n>=2)pool.push(['kasa',3+n*0.2],['ninja',5]);if(n>=3)pool.push(['tengu',3+n*0.35],['kitsune',4]);if(n>=5)pool.push(['samurai',3+n*0.2]);if(n>=8)pool.push(['oni',4]);
+ let tot=0;for(const p of pool)tot+=p[1];
+ for(let i=0;i<total;i++){let r=Math.random()*tot,t='oni';for(const p of pool){r-=p[1];if(r<=0){t=p[0];break;}}if(t==='kasa')q.push('kasa','kasa','kasa');else q.push(t);}
+ if(n%5===0)q.splice(Math.min(4,q.length),0,bossFor(n));return q;}
+const buildWaveL=n=>LEVEL===3?buildWave3(n):LEVEL===2?buildWave2(n):buildWave(n);
 function buildWave2(n){const q=[],total=Math.round((7+n*3.6)*(1+0.5*(pN()-1)));const pool=[['legion',10]];
  if(n>=2)pool.push(['archer',5],['lemure',2.5+n*0.2]);if(n>=3)pool.push(['harpy',3+n*0.35],['gladiator',4]);if(n>=5)pool.push(['centurion',3+n*0.15]);if(n>=6)pool.push(['minotaur',1.5+n*0.22]);
  let tot=0;for(const p of pool)tot+=p[1];
@@ -558,17 +625,21 @@ const SPECIAL={1:[
  2:[{n:'ราตรีลีมูเรส',d:'กะโหลกไฟวิญญาณพุ่งระเบิดใส่',mix:[['lemure',1]],k:1.5},
  {n:'เทพพิโรธ',d:'ทุกตัวโหดขึ้น เลือดหนา วิ่งไว ตีแรง',elite:1,k:0.85},
  {n:'ฝูงฮาร์ปี้',d:'ปีศาจปีกโฉบลงมาจากฟ้า',mix:[['harpy',3],['archer',1]],k:0.7},
- {n:'กองร้อยเซนจูเรียน',d:'นายร้อยกับกลาดิเอเตอร์เดินทัพมาเต็มลาน',mix:[['centurion',2],['gladiator',2],['minotaur',1]],k:0.5}]};
+ {n:'กองร้อยเซนจูเรียน',d:'นายร้อยกับกลาดิเอเตอร์เดินทัพมาเต็มลาน',mix:[['centurion',2],['gladiator',2],['minotaur',1]],k:0.5}],
+ 3:[{n:'ร่มผีบุกศาลเจ้า',d:'ร่มผีคาสะนับร้อยกระโดดเข้ามาทุกทิศ',mix:[['kasa',1]],k:1.6,mod:{spd:1.15}},
+ {n:'อสูรคลั่ง',d:'ทุกตัวโหดขึ้น เลือดหนา วิ่งไว ตีแรง',elite:1,k:0.85},
+ {n:'พายุเทนงุ',d:'เทนงุโฉบลงมาพร้อมนินจาเงา',mix:[['tengu',3],['ninja',2]],k:0.7},
+ {n:'ขบวนแห่ร้อยอสูร',d:'ฮยัคกิยาโกะ: โอนิ ซามูไร และมิโกะจิ้งจอกเดินขบวนมาพร้อมกัน',mix:[['oni',3],['samurai',2],['kitsune',2]],k:0.6}]};
 let waveMod=null,waveSp=null;
-function specialFor(n){if(n%10)return null;const L=SPECIAL[LEVEL===2?2:1];return L[(n/10-1)%L.length];}
-function buildSpecial(n,sp){const base=(LEVEL===2?buildWave2(n):buildWave(n)).filter(t=>!CATS[t].boss);
+function specialFor(n){if(n%10)return null;const L=SPECIAL[LEVEL];return L[(n/10-1)%L.length];}
+function buildSpecial(n,sp){const base=buildWaveL(n).filter(t=>!CATS[t].boss);
  const boss=n%5===0?[bossFor(n)]:[];
  if(sp.elite)return base.slice(0,Math.round(base.length*sp.k)).concat(boss);
  const total=Math.round(base.length*sp.k),q=[];let tot=0;for(const m of sp.mix)tot+=m[1];
  for(let i=0;i<total;i++){let r=Math.random()*tot,t=sp.mix[0][0];for(const m of sp.mix){r-=m[1];if(r<=0){t=m[0];break;}}q.push(t);}
  q.splice(Math.min(6,q.length),0,...boss);return q;}
-function waveCleared(w){if(waveSp&&NET.mode!=='client'){const b=40+w*4;coinsRun+=b;timers.push({t:0.9,fn:()=>showBanner('ผ่านเวฟพิเศษ!','โบนัส +'+b+' เหรียญ')});S.rank(4);}waveSp=null;waveMod=null;if(LEVEL===1&&w>=LEVELS[2].need&&save.lvOpen<2){save.lvOpen=2;persist();timers.push({t:1.2,fn:()=>showBanner('ปลดล็อกด่าน 2!','สนามเทพแห่งยมโลก · เลือกได้ที่หน้าแรก')});S.rank(6);}}
-function startWave(){if(P.down){P.down=false;P.hp=P.maxHp*0.3;}wave++;P.tsUsed=false;waveSp=specialFor(wave);waveMod=waveSp?(waveSp.elite?{hp:1.7,dmg:1.3,spd:1.15,elite:1}:waveSp.mod||null):null;queue=waveSp?buildSpecial(wave,waveSp):LEVEL===2?buildWave2(wave):buildWave(wave);waveStartPerk();placeTurrets();spawnT=1.2;showBanner(waveSp?'⚠ เวฟพิเศษ: '+waveSp.n:'WAVE '+wave,waveSp?waveSp.d+' · ศัตรู '+queue.length+' ตัว':wave%5===0?CATS[bossFor(wave)].name+(LEVEL===2?' ลงมาจากเขาโอลิมปัสแห่งยมโลก':' กำลังขึ้นมาจากประตูนรก'):'ศัตรู '+queue.length+' ตัว');S.wave();music.riff=(music.riff+1)%4;waveClearT=-1;if(wave>1)spawnBarrels();}
+function waveCleared(w){stAdd('waves');if(waveSp)stAdd('spec');save.bestLv[LEVEL]=Math.max(save.bestLv[LEVEL]||0,w);save.bestD[runDiff]=Math.max(save.bestD[runDiff]||0,w);setTimeout(checkAch,2600);if(w>=DIFF_NEED&&runDiff===save.diffOpen&&save.diffOpen<DIFFS.length-1){save.diffOpen++;persist();const nd=DIFFS[save.diffOpen];timers.push({t:2.2,fn:()=>showBanner('ปลดล็อกความยาก '+nd.ic+' '+nd.n+'!','เลือกได้ที่หน้าแรก')});S.rank(6);}if(LEVEL===2&&w>=LEVELS[3].need&&save.lvOpen<3){save.lvOpen=3;persist();timers.push({t:1.6,fn:()=>showBanner('ปลดล็อกด่าน 3!','ศาลเจ้าโยไค · เลือกได้ที่หน้าแรก')});S.rank(6);}if(waveSp&&NET.mode!=='client'){const b=40+w*4;coinsRun+=b;timers.push({t:0.9,fn:()=>showBanner('ผ่านเวฟพิเศษ!','โบนัส +'+b+' เหรียญ')});S.rank(4);}waveSp=null;waveMod=null;if(LEVEL===1&&w>=LEVELS[2].need&&save.lvOpen<2){save.lvOpen=2;persist();timers.push({t:1.2,fn:()=>showBanner('ปลดล็อกด่าน 2!','สนามเทพแห่งยมโลก · เลือกได้ที่หน้าแรก')});S.rank(6);}}
+function startWave(){if(P.down){P.down=false;P.hp=P.maxHp*0.3;}wave++;P.tsUsed=false;waveSp=specialFor(wave);waveMod=waveSp?(waveSp.elite?{hp:1.7,dmg:1.3,spd:1.15,elite:1}:waveSp.mod||null):null;queue=waveSp?buildSpecial(wave,waveSp):buildWaveL(wave);{const c=RD().cnt;if(c>1){const pool=queue.filter(t=>!CATS[t].boss),n=Math.round(pool.length*(c-1));for(let i=0;i<n&&pool.length;i++)queue.splice(Math.floor(Math.random()*queue.length)+1,0,pick(pool));}}waveStartPerk();placeTurrets();spawnT=1.2;showBanner(waveSp?'⚠ เวฟพิเศษ: '+waveSp.n:'WAVE '+wave,waveSp?waveSp.d+' · ศัตรู '+queue.length+' ตัว':wave%5===0?CATS[bossFor(wave)].name+(LEVEL===2?' ลงมาจากเขาโอลิมปัสแห่งยมโลก':' กำลังขึ้นมาจากประตูนรก'):'ศัตรู '+queue.length+' ตัว');S.wave();music.riff=(music.riff+1)%4;waveClearT=-1;if(wave>1)spawnBarrels();}
 function aliveTargets(){const T=[];if(P&&!P.down&&P.hp>0)T.push({x:P.pos.x,y:P.pos.y,z:P.pos.z,local:true});if(NET.mode==='host')for(const m of MATES.values())if(m.on&&!m.down)T.push({x:m.x,y:m.y,z:m.z,local:false,pid:m.pid});return T;}
 function spawnPoint(){const T=aliveTargets();const c=T.length?T[(Math.random()*T.length)|0]:{x:0,z:0};
  for(let k=0;k<40;k++){const a=Math.random()*TAU,r=rand(24,44);const x=c.x+Math.cos(a)*r,z=c.z+Math.sin(a)*r;if(Math.abs(x)>A-3||Math.abs(z)>A-3)continue;if(insideObstacle(x,z,1.3))continue;let ok=true;for(const t of T)if(Math.hypot(t.x-x,t.z-z)<18)ok=false;if(ok)return [x,z];}
@@ -578,8 +649,9 @@ function insideObstacleH(x,z,y){for(const o of obstacles)if(y<o.h&&Math.abs(x-o.
 let nextEid=1;
 function spawnEnemy(type,x,z,net){
  if(x===undefined)[x,z]=spawnPoint();const C=CATS[type],m=makeCat(type);m.g.position.set(x,0,z);scene.add(m.g);
- const L2=LEVEL===2,hpS=(1+(wave-1)*(L2?0.16:0.14))*(1+0.35*(pN()-1))*(L2?1.45:1),dS=(1+(wave-1)*0.06)*(L2?1.3:1);
+ const L2=LEVEL>=2,hpS=(1+(wave-1)*(LEVEL===3?0.17:L2?0.16:0.14))*(1+0.35*(pN()-1))*(LEVEL===3?1.75:L2?1.45:1),dS=(1+(wave-1)*0.06)*(LEVEL===3?1.5:L2?1.3:1);
  const e=Object.assign(m,{burn:0,slowT:0,id:net?net.id:nextEid++,onG:true,side:Math.random()<0.5?1:-1,stuck:0,landed:false,baseEm:new THREE.Color(C.body).multiplyScalar(0.14),type,C,hp:C.hp*hpS,max:C.hp*hpS,spd:C.spd*rand(0.92,1.1),dmg:C.dmg*dS,s:C.s,rad:(C.rad||0.42)*C.s,y:0,vy:0,st:'run',t:rand(1.5,3),atkCd:0.6,flash:0,knock:new THREE.Vector3(),phase:Math.random()*10,lunge:0,dead:false,slamCd:4,sumCd:6,stagger:0,canStagger:!C.boss,corpse:0,baseCol:new THREE.Color(C.body)});
+ {const D=RD();if(!net){e.hp*=D.hp;e.max=e.hp;e.dmg*=D.dmg;e.spd*=D.spd;if(!C.boss&&!waveMod&&D.elite&&Math.random()<D.elite){e.hp*=1.7;e.max=e.hp;e.dmg*=1.3;e.spd*=1.12;e.inner.scale.multiplyScalar(1.1);e.s*=1.1;e.rad*=1.1;e.elite=1;if(e.eyeMat)e.eyeMat.color.setRGB(3,0.25,0.15);}}}
  if(waveMod&&!C.boss&&!net){e.hp*=waveMod.hp||1;e.max=e.hp;e.dmg*=waveMod.dmg||1;e.spd*=waveMod.spd||1;if(waveMod.elite){e.inner.scale.multiplyScalar(1.1);e.s*=1.1;e.rad*=1.1;e.elite=1;}}
  if(net){e.tx=x;e.tz=z;e.ty=net.y;e.tr=0;e.y=net.y;m.g.position.y=net.y;}
  else if(C.fly){e.y=C.kind==='krasue'||C.kind==='lemure'?rand(0.4,1.6):C.boss&&C.rom?4:rand(3.5,6);e.ty=e.y;e.ang=Math.atan2(z-P.pos.z,x-P.pos.x);e.dirSign=Math.random()<0.5?1:-1;e.st='orbit';m.g.position.y=e.y;}
@@ -814,7 +886,8 @@ function killCat(e,head,src,o={}){
   if(e.C.fly&&e.y>1.5){sAdd+=25;styleAdd(0,'สอยร่วง!');}
   if(src==='ถังแก๊ส'){sAdd+=15;}
   styleAdd(sAdd,lbl);}
- if(mine&&!o.suicide){perkXP(src,e,head);const gm=GUN_BY_NAME[src];
+ if(mine&&!o.suicide){stAdd('kills');if(e.C.boss)stAdd('boss');if(head)stAdd('heads');if(o.glory)stAdd('gk');{const g0=GUN_BY_NAME[src];if(g0&&g0.melee||src==='หมัด'||src==='มือเปล่า')stAdd('melee');if(g0&&(g0.id==='m79'||g0.id==='rpg')||src==='ถังแก๊ส'||src==='ลูกปราย'||src==='หลุมดำ')stAdd('boom');}if(ST('kills')%50===0||e.C.boss)checkAch();
+  perkXP(src,e,head);const gm=GUN_BY_NAME[src];
   if(gm&&gm.melee||src==='หมัด'||src==='มือเปล่า'){if(sk('berserk',2))P.hp=Math.min(P.maxHp,P.hp+5);if(sk('berserk',10)){P.mkN=(P.mkT>0?P.mkN:0)+1;P.mkT=4;if(P.mkN>=10){P.mkN=0;P.berserk=Math.max(P.berserk,8);S.berserk();showBanner('บ้าเลือด!','คลั่ง 8 วิ');}}}
   if(head&&sk('sharp',8)&&gm&&isPerkGun(gm.id)&&Math.random()<0.15)triggerZed(3.2);
   if(o.burnt&&sk('firebug',8)){const bp=e.g.position.clone();timers.push({t:0.1,fn:()=>{for(let i=0;i<10;i++)fx(bp.x,0.6,bp.z,{color:pick([0xff7a20,0xffb040]),s0:0.6,s1:2,life:0.5,vx:rand(-4,4),vy:rand(1,4),vz:rand(-4,4)});for(const x of enemies){if(x.dead||x===e)continue;if(x.g.position.distanceTo(bp)<3.2)hitE(x,25*P.dmgMul,null,0,false,'ไฟลุกลาม',{burn:1,flame:1});}}});}}
@@ -848,7 +921,7 @@ function killCat(e,head,src,o={}){
 function triggerZed(dur,net){dur*=1+0.25*upLv('zed');if(zedT>0){zedT=Math.min(zedT+0.7,5.5);return;}if(zedCd>0&&!net)return;zedT=dur;zedBeat=0;S.zedIn();if(post)post.zed(1);$('#zed').classList.add('on');if(NET.mode==='host'&&!net)NET.send({t:'zt',d:dur});}
 function endZed(){zedT=0;zedCd=8;S.zedOut();if(post)post.zed(0);$('#zed').classList.remove('on');}
 function voice(e,k){const t=e.C.kind;
- if(t==='skel'){S.rattle(k==='die');return;}if(t==='man'){S.grunt(k==='die',1);return;}if(t==='beast'||t==='god'){if(k==='die'||Math.random()<0.5)S.grunt(k==='die',t==='god'?0.45:0.6);return;}if(t==='harpy'){S.shriek(k==='die');return;}if(t==='lemure'){S.wail();return;}if(t==='rat'){if(k==='die'||Math.random()<0.5)S.squeak();return;}if(t==='dog'){S.bark(k==='die');return;}if(t==='krasue'){S.shriek(k==='die');return;}
+ if(t==='skel'){S.rattle(k==='die');return;}if(t==='man'){S.grunt(k==='die',1);return;}if(t==='beast'||t==='god'){if(k==='die'||Math.random()<0.5)S.grunt(k==='die',t==='god'?0.45:0.6);return;}if(t==='harpy'){S.shriek(k==='die');return;}if(t==='lemure'){S.wail();return;}if(t==='rat'||t==='kasa'){if(k==='die'||Math.random()<0.5)S.squeak();return;}if(t==='dog'){S.bark(k==='die');return;}if(t==='krasue'){S.shriek(k==='die');return;}
  demonMeow(e.type==='kitten'?1.5:e.type==='persian'?0.7:e.type==='boss'?0.4:k==='atk'?0.9:1,k!=='die');}
 function chainZap(from,n,dmg,skip){const hit=[];for(let k=0;k<n;k++){let best=null,bd=9;for(const e of enemies){if(e.dead||e===skip||hit.includes(e))continue;_d.copy(e.g.position);_d.y+=HY(e);const d=_d.distanceTo(from);if(d<bd){bd=d;best=e;}}
  if(!best)break;hit.push(best);_d.copy(best.g.position);_d.y+=HY(best);const to=_d.clone();
@@ -904,7 +977,7 @@ function slamFx(x,z,col){const ring=new THREE.Mesh(new THREE.RingGeometry(0.85,1
  for(let i=0;i<14;i++)fx(x+rand(-2,2),P.pos.y+0.3,z+rand(-2,2),{tex:smokeTex,add:false,color:0x3a2a20,s0:0.6,s1:2.4,life:0.8,vy:1.5,op:0.7});decal(x,z,3,0x080303);}
 // perk XP: kills with a class's weapons level that class
 function perkXP(src,e,head){const id=P.pk.id;if(!id)return;
- const before=perkLv(id);save.pxp[id]=(save.pxp[id]||0)+Math.round((e.C.boss?50:(1+Math.min(5,e.C.coin||0))+(head?1:0))*(LEVEL===2?1.5:1)+(wave>=10?1:0));const after=perkLv(id);
+ const before=perkLv(id);save.pxp[id]=(save.pxp[id]||0)+Math.round((e.C.boss?50:(1+Math.min(5,e.C.coin||0))+(head?1:0))*LV_MUL[LEVEL]*RD().xp+(wave>=10?1:0));const after=perkLv(id);
  if(after>before){const pk=PERKS.find(p=>p.id===id);const skn=pk.skills.find(x=>x[0]===after);showBanner(pk.icon+' '+pk.name+' เลเวล '+after+'!',skn?'ปลดล็อก: '+skn[1]+' · '+skn[2]:'โบนัสอาชีพแรงขึ้น');S.rank(Math.min(6,after/2|0));persist();
   if(P.pk.id===id){P.pk.lv=after;rec();}}}
 function waveStartPerk(){if(!P)return;if(sk('support',10))for(const k of AMMO_TYPES)if(GUNS.some((g,i)=>P.own[i]&&g.ammo===k))P.ammo[k]=Math.min(amax(k),P.ammo[k]+Math.ceil(amax(k)*0.3));
@@ -1150,6 +1223,7 @@ function update(rdt){
   if(a.t<=0){scene.remove(a.m);a.m.material.dispose();}}
  pools=pools.filter(a=>a.t>0);
  // enemy fireballs
+ for(const s of eprojs)if(s.m.userData.spin)s.m.userData.spin.rotation.z+=dt*28;
  if(NET.mode!=='client')for(const s of eprojs){s.life-=dt;s.m.position.addScaledVector(s.v,dt);const p=s.m.position;s.trail-=dt;if(s.trail<=0){s.trail=0.03;fx(p.x,p.y,p.z,{color:PKCOL[s.kind]||0xff5a10,s0:(s.kind==='arrow'?0.25:0.6)*s.size,s1:0.1,life:s.kind==='arrow'?0.18:0.3});}
   if(p.y<0.1||insideObstacleH(p.x,p.z,p.y)||Math.abs(p.x)>A||Math.abs(p.z)>A)s.life=0;
   const dy=p.y-(P.pos.y+0.9);if(!P.down&&Math.hypot(p.x-px,p.z-pz)<0.5+0.25*s.size&&Math.abs(dy)<1.1){hurt(s.dmg*(sk('firebug',4)&&(s.kind==='fire'||s.kind==='soul')?0.5:1),false,p.x-s.v.x,p.z-s.v.z);s.life=0;}
@@ -1185,17 +1259,19 @@ function update(rdt){
  if(NET.mode!=='client'&&!queue.length&&!enemies.some(e=>!e.dead)&&waveClearT<0&&wave>0){waveClearT=1.6;showBanner('เคลียร์!','+'+(5+wave)+' เหรียญ');coinsRun+=5+wave;if(NET.mode==='host')NET.send({t:'clr',w:wave});waveCleared(wave);}
  if(waveClearT>=0){waveClearT-=rdt;if(waveClearT<0)openUpgrade();}
 }
-const PK=['fire','acid','arrow','spear','soul','bolt'],PKCOL={fire:0xff5a10,acid:0x6aff4a,arrow:0xffa040,spear:0xffd080,soul:0xb04aff,bolt:0x8ae8ff};
+const PK=['fire','acid','arrow','spear','soul','bolt','fox','shuriken','rock'],PKCOL={fire:0xff5a10,acid:0x6aff4a,arrow:0xffa040,spear:0xffd080,soul:0xb04aff,bolt:0x8ae8ff,fox:0x5ab8ff,shuriken:0xc8d0e0,rock:0xff7a3a};
 function projMesh(kind,size){const g=new THREE.Group();const col=PKCOL[kind]||0xff5a10;
  if(kind==='arrow'){part(GEO.box,std(0x5a3a1c),0.025,0.025,0.8,0,0,0,g);part(GEO.cone4,std(0x8a8e96,{metalness:1,roughness:0.3}),0.04,0.12,0.04,0,0,0.44,g).rotation.x=Math.PI/2;}
  else if(kind==='spear'){part(GEO.cyl,std(0x3a2414),0.04,2.4,0.04,0,0,0,g).rotation.x=Math.PI/2;part(GEO.cone4,std(0xffc860,{metalness:1,roughness:0.25}),0.09,0.4,0.09,0,0,1.35,g).rotation.x=Math.PI/2;}
- else part(GEO.sph,bas(kind==='acid'?0xd8ffb0:kind==='soul'?0xe8c0ff:kind==='bolt'?0xe0fbff:0xffd080),0.14*size,0.14*size,0.14*size,0,0,0,g);
- const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:col,blending:THREE.AdditiveBlending,depthWrite:false}));gl.scale.setScalar((kind==='arrow'?0.5:kind==='spear'?1.2:1.1)*size);g.add(gl);return g;}
+ else if(kind==='shuriken'){const sh=new THREE.Group();for(let i=0;i<4;i++)part(GEO.cone4,std(0xb8bcc8,{metalness:1,roughness:0.25}),0.05,0.22,0.012,0,0,0,sh).rotation.set(Math.PI/2,0,i*Math.PI/2);sh.rotation.x=Math.PI/2;sh.userData.spin=1;g.add(sh);g.userData.spin=sh;}
+ else if(kind==='rock'){part(new THREE.DodecahedronGeometry(1,0),std(0x4a4448,{roughness:0.95,flatShading:true}),0.32*size,0.28*size,0.3*size,0,0,0,g);}
+ else part(GEO.sph,bas(kind==='acid'?0xd8ffb0:kind==='soul'?0xe8c0ff:kind==='bolt'?0xe0fbff:kind==='fox'?0xd8f0ff:0xffd080),0.14*size,0.14*size,0.14*size,0,0,0,g);
+ const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:col,blending:THREE.AdditiveBlending,depthWrite:false}));gl.scale.setScalar((kind==='arrow'||kind==='shuriken'?0.5:kind==='spear'?1.2:kind==='rock'?0.7:1.1)*size);g.add(gl);return g;}
 function fireball(e,dx,dz,speed,size,tg,kind){kind=kind===true?'acid':kind||'fire';const g=projMesh(kind,size);
  g.position.set(e.g.position.x+dx*0.6*e.s,e.y+(e.C.rom?1.25:1.0)*e.s*0.8,e.g.position.z+dz*0.6*e.s);scene.add(g);const T=tg||{x:P.pos.x,y:P.pos.y,z:P.pos.z};const ty=T.y+1.1;const dist=Math.hypot(T.x-g.position.x,T.z-g.position.z)||1;
  const v=new THREE.Vector3(dx*speed,(ty-g.position.y)/dist*speed,dz*speed);g.lookAt(_e.copy(g.position).add(v));
- eprojs.push({m:g,v,dmg:e.dmg*(kind==='arrow'?0.9:1),life:5,size,trail:0,acid:kind==='acid',kind});
- if(kind==='fire')S.fireball();else if(kind==='arrow'||kind==='spear')S.swoosh();else if(kind==='soul'||kind==='bolt')S.zap();}
+ eprojs.push({m:g,v,dmg:e.dmg*(kind==='arrow'?0.9:kind==='shuriken'?0.55:kind==='fox'?0.7:1),life:5,size,trail:0,acid:kind==='acid',kind});
+ if(kind==='fire'||kind==='fox'||kind==='rock')S.fireball();else if(kind==='arrow'||kind==='spear'||kind==='shuriken')S.swoosh();else if(kind==='soul'||kind==='bolt')S.zap();}
 // lemures explode when they reach a player
 function lemureBoom(e){const pos=e.g.position.clone();pos.y=e.y+1.0*e.s;explodeFx(pos,2.6,false);if(NET.mode==='host')NET.send({t:'xf',x:pos.x,y:pos.y,z:pos.z,r:2.6});
  const r=2.8;if(!P.down){const d=Math.hypot(P.pos.x-pos.x,P.pos.z-pos.z);if(d<r)hurt(e.dmg*(1-d/r*0.5),true,pos.x,pos.z);}
@@ -1256,7 +1332,7 @@ document.addEventListener('pointerlockchange',()=>{lockPending=false;locked=docu
 document.addEventListener('pointerlockerror',enableDrag);
 function hideAll(){['#menu','#shop','#upgrade','#pause','#over','#coop','#wait','#lb'].forEach(s=>$(s).hidden=true);$('#chatBar').hidden=true;}
 let pendingFree=0,upOpts=[];
-function startGame(){audio();startMusic();lobbyOff();hideAll();clearMenuCats();newRun();state='play';$('#hud').hidden=false;$('#touch').hidden=!isTouch;lastTime=performance.now();lock();
+function startGame(){if(NET.mode!=='client')runDiff=save.diff||0;audio();startMusic();lobbyOff();hideAll();clearMenuCats();newRun();state='play';$('#hud').hidden=false;$('#touch').hidden=!isTouch;lastTime=performance.now();lock();
  readyLocal=false;for(const m of MATES.values())m.wready=false;if(NET.mode){NET.started=true;const k=NET.me;P.pos.set(((k%3)-1)*2.2,0,4+Math.floor(k/3)*2.2);}
  P.freeL=upLv('legend');const fr=upLv('start')+P.freeL;if(fr>0){pendingFree=fr;openUpgrade(true);}else readyUp();}
 let readyLocal=false;
@@ -1297,8 +1373,8 @@ function pause(){if(state!=='play')return;state='paused';firing=false;keys.clear
 function accPct(){return P.stat.shots?Math.round(P.stat.hits/P.stat.shots*100):0;}
 function resume(){if(state!=='paused')return;$('#pause').hidden=true;state='play';lastTime=performance.now();lock();}
 function endRun(){if(state==='over')return;if(zedT>0)endZed();state='over';firing=false;unlock();flameSound(false);ghosts.forEach(g=>g.visible=false);drawArrows(false);hlOn=false;enemies.forEach(e=>e.setXray&&e.setXray(false));$('#wait').hidden=true;$('#upgrade').hidden=true;$('#pause').hidden=true;
- const earned=Math.round((coinsRun+wave*3)*(1+upLv('greed')*0.15)*(1+upLv('vip')*0.25)*(1+upLv('crown')*0.3)*(LEVEL===2?1.5:1));save.bestLv[LEVEL]=Math.max(save.bestLv[LEVEL]||0,wave);P.ads=false;save.coins+=earned;save.runs++;const nb=wave>save.best.wave;
- if(nb)save.best.wave=wave;if(kills>save.best.kills)save.best.kills=kills;if(gkCount>save.best.gk)save.best.gk=gkCount;persist();
+ const earned=Math.round((coinsRun+wave*3)*(1+upLv('greed')*0.15)*(1+upLv('vip')*0.25)*(1+upLv('crown')*0.3)*LV_MUL[LEVEL]*RD().coin);save.bestLv[LEVEL]=Math.max(save.bestLv[LEVEL]||0,wave);save.bestD[runDiff]=Math.max(save.bestD[runDiff]||0,wave);stAdd('coins',earned);P.ads=false;save.coins+=earned;save.runs++;const nb=wave>save.best.wave;
+ if(nb)save.best.wave=wave;if(kills>save.best.kills)save.best.kills=kills;if(gkCount>save.best.gk)save.best.gk=gkCount;persist();setTimeout(checkAch,1200);
  $('#overTitle').textContent=nb?'สถิติใหม่ · เวฟ '+wave:'คุณตายแล้ว';
  $('#overText').textContent='Aritat ล้มลงกลางซอยนรกที่เวฟ '+wave+' ฝูงแมวปีศาจรุมแทะจนเหลือแต่รองเท้า เก็บเหรียญไปซื้อของแล้วกลับมาล้างแค้น';
  $('#overStats').innerHTML=statHtml([['ถึงเวฟ',wave],['ไล่แมวไป',kills],['ความแม่น',accPct()+'%'],['ยิงโดนหัว',P.stat.heads+' นัด'],['หัวติดกันสูงสุด',P.stat.bestStreak],['ยิงไกลสุด',Math.round(P.stat.longest)+' ม.'],['แรงค์สูงสุด',RANKS[P.stat.bestRank][1]],['เหรียญที่ได้','+'+earned]]);
@@ -1317,16 +1393,23 @@ function renderChars(){const box=$('#charList');if(!box)return;box.innerHTML='';
 // ---------- menu tabs: levels, perks, loadout ----------
 let menuTab=save.menuTab&&save.menuTab!=='lv'?save.menuTab:'play';
 function setTab(t){if(!document.querySelector('#pane-'+t))t='play';menuTab=t;save.menuTab=t;persist();$('#menu').dataset.tab=t;
- if(t==='shop'){shopFrom='menu';$('#shopHost').appendChild($('#shopList'));renderShop();}if(t==='lb'){lbLv=LEVEL;renderLb();}if(t==='gun')renderLoadout();if(t==='pk')renderPerks();document.querySelectorAll('.mtab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.mpane').forEach(p=>p.hidden=p.id!=='pane-'+t);}
+ if(t==='shop'){shopFrom='menu';$('#shopHost').appendChild($('#shopList'));renderShop();}if(t==='lb'){lbLv=LEVEL;renderLb();}if(t==='gun')renderLoadout();if(t==='pk')renderPerks();if(t==='ach'){checkAch();renderAch();}document.querySelectorAll('.mtab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.mpane').forEach(p=>p.hidden=p.id!=='pane-'+t);}
 document.querySelectorAll('.mtab').forEach(b=>b.onclick=()=>{setTab(b.dataset.t);S.pick&&audio();});
 function menuSummary(){const pk=curPerk(),C=curChar(),lv=perkLv(pk.id),x=save.pxp[pk.id]||0,nx=XP_NEED[Math.min(10,lv+1)],px=XP_NEED[lv];
  $('#pcInfo').innerHTML=`<div class="row"><span>${C.icon} ${C.name}</span><span style="color:${C.col}">${C.role}</span></div><div class="row"><span style="color:${pk.col}">${pk.icon} ${pk.name}</span><span>Lv ${lv}</span></div><div class="xpb" style="--pc:${pk.col}"><i style="width:${lv>=10?100:Math.round((x-px)/(nx-px)*100)}%"></i></div>`;
- $('#playSub').textContent=LEVELS[LEVEL].name+' · เล่นคนเดียว';
- $('#menuSum').innerHTML=`${LEVELS[LEVEL].sub} · ${C.icon} ${C.name} · ${pk.icon} ${pk.name} Lv${perkLv(pk.id)} · ${(save.loadout||[]).map(id=>(GUNS[GI(id)]||{}).short).filter(Boolean).join(' / ')}`;}
-function renderLevels(){const box=$('#lvList');if(!box)return;box.innerHTML='';
- for(const lv of [1,2]){const L=LEVELS[lv],open=lv<=save.lvOpen,d=document.createElement('button');d.className='lv l'+lv+(LEVEL===lv?' sel':'')+(open?'':' lock');
+ $('#playSub').textContent=LEVELS[LEVEL].name+' · '+DIFFS[save.diff||0].n;
+ $('#menuSum').innerHTML=`${LEVELS[LEVEL].sub} · ${DIFFS[save.diff||0].ic} ${DIFFS[save.diff||0].n} · ${C.icon} ${C.name} · ${pk.icon} ${pk.name} Lv${perkLv(pk.id)} · ${(save.loadout||[]).map(id=>(GUNS[GI(id)]||{}).short).filter(Boolean).join(' / ')}`;}
+function renderAch(){const box=$('#achList');if(!box)return;const done=ACH.filter(a=>save.ach[a.id]).length;$('#achSum').textContent=`สำเร็จแล้ว ${done} / ${ACH.length} · เหรียญรางวัลรวม ${ACH.filter(a=>save.ach[a.id]).reduce((s,a)=>s+a.rw,0).toLocaleString()} / ${ACH.reduce((s,a)=>s+a.rw,0).toLocaleString()}`;
+ box.innerHTML=ACH.map(a=>{let v=0;try{v=a.f();}catch(e){}const ok=!!save.ach[a.id],k=Math.min(1,v/a.goal);
+  return `<div class="ach${ok?' ok':''}"><span class="ai">${a.ic}</span><span class="at"><b>${a.n}</b><small>${a.d}</small><i style="--k:${k}"></i><small class="ap">${ok?'✔ สำเร็จแล้ว':Math.min(v,a.goal).toLocaleString()+' / '+a.goal.toLocaleString()}</small></span><span class="ar">🪙 ${a.rw.toLocaleString()}</span></div>`;}).join('');}
+function renderDiff(){const box=$('#diffList');if(!box)return;box.innerHTML='';
+ DIFFS.forEach((D,i)=>{const open=i<=save.diffOpen,b=document.createElement('button');b.className='df'+(save.diff===i?' sel':'')+(open?'':' lock');
+  b.innerHTML=`<b>${D.ic} ${D.n}</b><small>${open?D.d:'🔒 ไปถึงเวฟ '+DIFF_NEED+' ในระดับ '+DIFFS[i-1].n+' เพื่อปลดล็อก'}</small>`;
+  b.onclick=()=>{if(!open){S.dry&&S.dry();return;}save.diff=i;persist();renderDiff();menuSummary();if(NET.mode==='host')broadcastRoster();};box.appendChild(b);});}
+function renderLevels(){renderDiff();const box=$('#lvList');if(!box)return;box.innerHTML='';
+ for(const lv of LV_IDS){const L=LEVELS[lv],open=lv<=save.lvOpen,d=document.createElement('button');d.className='lv l'+lv+(LEVEL===lv?' sel':'')+(open?'':' lock');
   const best=(save.bestLv||{})[lv]||(lv===1?save.best.wave:0);
-  d.innerHTML=`<span class="tag">${open?(LEVEL===lv?'✔ เลือกอยู่':'กดเพื่อเลือก'):'🔒 ล็อก'}</span><b>${L.name}</b><small>${L.sub}${lv===2?' · ศัตรูโหดกว่า เหรียญ ×1.5':''}</small><small>${open?'ดีที่สุด: เวฟ '+best:'ผ่านเวฟ '+L.need+' ของด่าน 1 เพื่อปลดล็อก (ดีที่สุดตอนนี้: เวฟ '+(((save.bestLv||{})[1])||save.best.wave||0)+')'}</small>`;
+  d.innerHTML=`<span class="tag">${open?(LEVEL===lv?'✔ เลือกอยู่':'กดเพื่อเลือก'):'🔒 ล็อก'}</span><b>${L.name}</b><small>${L.sub}${lv>1?' · ศัตรูโหดกว่า เหรียญ ×'+LV_MUL[lv]:''}</small><small>${open?'ดีที่สุด: เวฟ '+best:'ผ่านเวฟ '+L.need+' ของด่าน '+L.from+' เพื่อปลดล็อก (ดีที่สุดตอนนี้: เวฟ '+(((save.bestLv||{})[L.from])||(L.from===1?save.best.wave:0)||0)+')'}</small>`;
   d.onclick=async()=>{if(!open){S.dry&&S.dry();return;}save.level=lv;persist();await setLevel(lv);renderLevels();menuSummary();if(NET.mode==='host')broadcastRoster();};box.appendChild(d);}
  menuSummary();}
 function renderPerks(){const box=$('#perkList');if(!box)return;box.innerHTML='';
@@ -1348,7 +1431,7 @@ function renderMenuAll(){renderChars();renderPerks();renderLoadout();renderLevel
 function sendMyLook(){if(NET.mode&&NET.connected){if(NET.mode==='client')NET.send({t:'look',ch:save.char,pk:save.perk,pl:perkLv(save.perk)});else broadcastRoster();}if(typeof refreshLobby3D==='function')refreshLobby3D();}
 const lbOn=()=>!!(LEADERBOARD.url&&LEADERBOARD.key);
 const lbHeaders=()=>Object.assign({apikey:LEADERBOARD.key,'Content-Type':'application/json'},LEADERBOARD.key.startsWith('sb_')?{}:{Authorization:'Bearer '+LEADERBOARD.key});
-function recordScore(){if(!P||wave<1)return;const en={name:myName(),wave,kills,char:save.char,mode:NET.mode?'coop':'solo',acc:accPct(),level:LEVEL};
+function recordScore(){if(!P||wave<1)return;const en={name:myName(),wave,kills,char:save.char,mode:(NET.mode?'coop':'solo')+(runDiff?'-'+['','h','x'][runDiff]:''),acc:accPct(),level:LEVEL};
  save.hist.push(Object.assign({t:Date.now()},en));save.hist.sort((a,b)=>b.wave-a.wave||b.kills-a.kills);save.hist=save.hist.slice(0,20);persist();
  if(lbOn()){const post=b=>fetch(LEADERBOARD.url.replace(/\/$/,'')+'/rest/v1/scores',{method:'POST',headers:Object.assign({Prefer:'return=minimal'},lbHeaders()),body:JSON.stringify(b)});
   post(en).then(r=>{if(!r.ok&&en.level===1){const b=Object.assign({},en);delete b.level;return post(b);}}).catch(()=>{});}}
@@ -1359,13 +1442,13 @@ async function lbFetch(lv){const base=LEADERBOARD.url.replace(/\/$/,'')+'/rest/v
  if(!r.ok)throw new Error(lbErr(r.status));const rows=await r.json();const seen=new Set(),out=[];for(const x of rows){const k=String(x.name||'').toLowerCase();if(seen.has(k))continue;seen.add(k);out.push(x);if(out.length>=50)break;}return out;}
 const charIcon=id=>(CHARS.find(c=>c.id===id)||CHARS[0]).icon;
 function lbTable(rows,me){if(!rows.length)return '<p class="hint">ยังไม่มีสถิติ เล่นให้จบสักรอบก่อน</p>';
- return `<table class="lbt"><thead><tr><th>#</th><th>ผู้เล่น</th><th>เวฟ</th><th>ไล่ไป</th><th>แม่น</th><th>โหมด</th></tr></thead><tbody>${rows.map((r,i)=>`<tr class="${me&&String(r.name).toLowerCase()===myName().toLowerCase()?'me':''}"><td>${i<3?['🥇','🥈','🥉'][i]:i+1}</td><td>${charIcon(r.char)} ${esc(r.name)}</td><td>${r.wave}</td><td>${r.kills}</td><td>${r.acc??'-'}%</td><td>${r.mode==='coop'?'ทีม':'เดี่ยว'}</td></tr>`).join('')}</tbody></table>`;}
+ return `<table class="lbt"><thead><tr><th>#</th><th>ผู้เล่น</th><th>เวฟ</th><th>ไล่ไป</th><th>แม่น</th><th>โหมด</th></tr></thead><tbody>${rows.map((r,i)=>`<tr class="${me&&String(r.name).toLowerCase()===myName().toLowerCase()?'me':''}"><td>${i<3?['🥇','🥈','🥉'][i]:i+1}</td><td>${charIcon(r.char)} ${esc(r.name)}</td><td>${r.wave}</td><td>${r.kills}</td><td>${r.acc??'-'}%</td><td>${String(r.mode||'').startsWith('coop')?'ทีม':'เดี่ยว'}${/-x$/.test(r.mode||'')?' 💀':/-h$/.test(r.mode||'')?' 😈':''}</td></tr>`).join('')}</tbody></table>`;}
 let lbTab='g',lbLv=1;
-async function renderLb(){const body=$('#lbBody');$('#lbTabG').classList.toggle('on',lbTab==='g');$('#lbTabL').classList.toggle('on',lbTab==='l');$('#lbLv1').classList.toggle('on',lbLv===1);$('#lbLv2').classList.toggle('on',lbLv===2);
+async function renderLb(){const body=$('#lbBody');$('#lbTabG').classList.toggle('on',lbTab==='g');$('#lbTabL').classList.toggle('on',lbTab==='l');LV_IDS.forEach(l=>$('#lbLv'+l).classList.toggle('on',lbLv===l));
  if(lbTab==='l'){body.innerHTML=lbTable(save.hist.filter(h=>(h.level||1)===lbLv),false);return;}
  if(!lbOn()){body.innerHTML='<p class="hint">อันดับรวมทุกคนยังไม่ได้เชื่อมฐานข้อมูล ตอนนี้ดูสถิติของตัวเองได้ที่แท็บ "ของฉัน"</p>';return;}
  body.innerHTML='<p class="hint">กำลังโหลด…</p>';const want=lbLv;try{const rows=await lbFetch(want);if(want===lbLv&&lbTab==='g')body.innerHTML=lbTable(rows,true);}catch(e){body.innerHTML='<p class="hint">โหลดอันดับไม่สำเร็จ ('+esc(e.message)+')</p>';}}
-$('#lbLv1').onclick=()=>{lbLv=1;renderLb();};$('#lbLv2').onclick=()=>{lbLv=2;renderLb();};
+LV_IDS.forEach(l=>$('#lbLv'+l).onclick=()=>{lbLv=l;renderLb();});
 $('#lbTabG').onclick=()=>{lbTab='g';renderLb();};$('#lbTabL').onclick=()=>{lbTab='l';renderLb();};
 $('#pname').addEventListener('keydown',e=>e.stopPropagation());$('#adminCode').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')$('#adminBtn').click();});$('#pname').addEventListener('input',e=>{save.name=e.target.value.trim().slice(0,14);persist();});
 const statHtml=a=>a.map(([k,v])=>`<div>${k}<b>${v}</b></div>`).join('');
@@ -1524,7 +1607,7 @@ function renderRoom(){
  $('#readyBtn').textContent=NET.ready?'ยกเลิกพร้อม':'พร้อม!';
  $('#coopStart').textContent=MATES.size===0?'เริ่มเล่นคนเดียว':notReady?'เริ่มเกม (รออีก '+notReady+' คน)':'เริ่มเกม!';
  $('#coopStart').disabled=notReady>0;renderRoomPick();refreshLobby3D();}
-function broadcastRoster(){if(NET.mode!=='host')return;NET.send({t:'roster',h:myName(),hc:save.char,hp:save.perk,hl:perkLv(save.perk),lv:LEVEL,title:NET.title,pl:[...MATES.values()].map(m=>[m.pid,m.name,m.ready?1:0,m.ch,m.pk,m.pl])});renderRoom();dirSendReg();}
+function broadcastRoster(){if(NET.mode!=='host')return;NET.send({t:'roster',h:myName(),hc:save.char,hp:save.perk,hl:perkLv(save.perk),lv:LEVEL,df:save.diff||0,title:NET.title,pl:[...MATES.values()].map(m=>[m.pid,m.name,m.ready?1:0,m.ch,m.pk,m.pl])});renderRoom();dirSendReg();}
 function chatLine(pid,text,sys){const log=$('#chatLog');const d=document.createElement('div');if(sys){d.className='sys';d.textContent=text;}else d.innerHTML=`<b style="color:${pColor(pid)}">${esc(nameOf(pid))}:</b> ${esc(text)}`;log.appendChild(d);while(log.children.length>80)log.firstChild.remove();log.scrollTop=1e9;
  if(inGame()||state==='over'){const h=$('#chatHud');const e=d.cloneNode(true);h.appendChild(e);while(h.children.length>6)h.firstChild.remove();setTimeout(()=>e.remove(),8000);}}
 function sysChat(t){chatLine(0,t,true);if(NET.mode==='host')NET.send({t:'sys',x:t});}
@@ -1575,14 +1658,14 @@ function onNet(m){if(!m||!m.t)return;
   case 'roster':if(NET.mode!=='client')return;{NET.hostName=m.h;NET.title=m.title;const seen=new Set();
    for(const [pid,name,rd,ch,pk,pl] of m.pl){if(pid===NET.me)continue;seen.add(pid);let mt=MATES.get(pid);if(!mt){mt=newMate(pid,name);MATES.set(pid,mt);}mt.name=name;mt.ready=!!rd;mt.ch=ch||'aritat';mt.pk=pk||'commando';mt.pl=pl||0;}
    if(!MATES.has(0))MATES.set(0,newMate(0,m.h));seen.add(0);{const h=MATES.get(0);h.name=m.h;h.ch=m.hc||'aritat';h.pk=m.hp||'commando';h.pl=m.hl||0;}
-   if(m.lv&&m.lv!==LEVEL&&!inGame())setLevel(m.lv);
+   if(m.lv&&m.lv!==LEVEL&&!inGame())setLevel(m.lv);NET.hostDiff=m.df||0;
    for(const [pid,mt] of [...MATES])if(!seen.has(pid)){removeAvatar(mt);MATES.delete(pid);}
    renderRoom();}break;
   case 'lrdy':if(NET.mode==='host'){const mt=MATES.get(m.from);if(mt){mt.ready=!!m.v;broadcastRoster();}}break;
   case 'look':if(NET.mode==='host'){const mt=MATES.get(m.from);if(mt){mt.ch=m.ch;mt.pk=m.pk;mt.pl=m.pl||0;broadcastRoster();}}break;
   case 'chat':chatLine(m.from,m.x);break;
   case 'sys':if(NET.mode==='client')chatLine(0,m.x,true);break;
-  case 'start':if(NET.mode==='client'){NET.ready=false;NET.started=true;setLevel(m.lv||1).then(()=>startGame());}break;
+  case 'start':if(NET.mode==='client'){NET.ready=false;NET.started=true;runDiff=m.df||0;setLevel(m.lv||1).then(()=>startGame());}break;
   case 'p':{let mt=MATES.get(m.from);if(!mt){if(NET.mode==='host')return;mt=newMate(m.from,'เพื่อน');MATES.set(m.from,mt);}
    if(!mt.on){mt.x=m.x;mt.y=m.y;mt.z=m.z;}mt.on=true;mt.tx=m.x;mt.ty=m.y;mt.tz=m.z;mt.yaw=m.yw;mt.pitch=m.pt;mt.cur=m.c;mt.hp=m.hp;mt.mh=m.mh;mt.down=!!m.dn;mt.rev=m.rv||0;}break;
   case 's':if(NET.mode==='client'&&P&&inGame())applySnap(m);break;
@@ -1775,7 +1858,7 @@ function hostEnemies(dt){
    else if(e.st==='leap'){vx=e.ldx*16;vz=e.ldz*16;if(e.landed){e.st='run';e.t=rand(2.5,4);e.eyeMat.color.setHex(e.C.eye).multiplyScalar(2.2);}}
   }else if(ai==='khao'){
    if(d<11){vx=-dx*e.spd*0.7+dz*e.spd*0.6;vz=-dz*e.spd*0.7-dx*e.spd*0.6;}else if(d<18){vx=dz*e.spd*0.7;vz=-dx*e.spd*0.7;}
-   if(e.t<=0&&d<34&&!none){e.t=rand(2,3);fireball(e,dx,dz,17,1,tg);}
+   if(e.t<=0&&d<34&&!none){e.t=rand(2,3);if(e.C.pk){e.lunge=1;const a0=Math.atan2(dz,dx);for(let k=-1;k<=1;k++){const a=a0+k*0.14;fireball(e,Math.cos(a),Math.sin(a),19,0.9,tg,e.C.pk);}}else fireball(e,dx,dz,17,1,tg);}else if(e.C.pk&&!none&&d<34&&e.t<0.6)e.windR=1-e.t/0.6;
   }else if(ai==='persian'){
    if(e.st==='run'&&e.t<=0&&d<18&&d>4){e.st='wind';e.t=0.6;voice(e,'atk');}
    else if(e.st==='wind'){vx=vz=0;e.inner.rotation.x=-0.15;if(e.t<=0){e.st='charge';e.t=1.1;e.ldx=dx;e.ldz=dz;e.inner.rotation.x=0;}}
@@ -1818,6 +1901,24 @@ function hostEnemies(dt){
   else if(ai==='archer'){
    if(d<12){vx=-dx*e.spd*0.6+dz*e.spd*0.5*e.side;vz=-dz*e.spd*0.6-dx*e.spd*0.5*e.side;}else if(d<22){vx=dz*e.spd*0.6*e.side;vz=-dx*e.spd*0.6*e.side;}
    if(e.t<=0&&d<42&&!none){e.t=rand(1.8,2.8);e.lunge=1;fireball(e,dx,dz,32,1,tg,'arrow');}else if(!none&&d<42&&e.t<0.7)e.windR=1-e.t/0.7;
+  }else if(ai==='ninja'){
+   // keeps mid range, strafes, throws shuriken fans and blinks around the player in a puff of smoke
+   e.blCd=(e.blCd===undefined?rand(3,6):e.blCd)-dt;
+   if(d<7){vx=-dx*e.spd*0.5+dz*e.spd*0.7*e.side;vz=-dz*e.spd*0.5-dx*e.spd*0.7*e.side;}else if(d<16){vx=dz*e.spd*0.75*e.side;vz=-dx*e.spd*0.75*e.side;}
+   if(e.blCd<=0&&!none&&d<30){e.blCd=rand(5,8);const a=Math.atan2(gp.z-pz,gp.x-px)+rand(1.2,2.2)*(Math.random()<0.5?1:-1),rr=rand(5,8),nx=clamp(px+Math.cos(a)*rr,-A+3,A-3),nz=clamp(pz+Math.sin(a)*rr,-A+3,A-3);
+    if(!insideObstacle(nx,nz,0.8)){puff(gp.x,gp.z,true);gp.x=nx;gp.z=nz;puff(nx,nz,true);e.side*=-1;e.t=Math.min(e.t,0.35);}}
+   if(e.t<=0&&d<30&&!none){e.t=rand(1.6,2.6);e.lunge=1;const a0=Math.atan2(dz,dx);for(let k=-1;k<=1;k++){const a=a0+k*0.12;fireball(e,Math.cos(a),Math.sin(a),30,0.8,tg,'shuriken');}}else if(!none&&d<30&&e.t<0.5)e.windR=1-e.t/0.5;
+  }else if(ai==='bossOni'){
+   e.slamCd-=dt;e.sumCd-=dt;e.thrCd=(e.thrCd===undefined?3:e.thrCd)-dt;e.chCd=(e.chCd===undefined?5:e.chCd)-dt;
+   if(!e.enraged&&e.hp<e.max*0.5){e.enraged=true;e.spd*=1.25;voice(e,'atk');showBanner('ราชาโอนิคลั่ง!','มันเร็วขึ้นและตีแรงขึ้น');e.dmg*=1.2;}
+   if(e.st==='wind'){vx=vz=0;if(e.t<=0){e.st='charge';e.t=1.2;e.ldx=dx;e.ldz=dz;}}
+   else if(e.st==='charge'){vx=e.ldx*22;vz=e.ldz*22;if(Math.random()<dt*25)fx(gp.x,0.3,gp.z,{tex:smokeTex,add:false,color:0x2a2030,s0:1,s1:3,life:0.8,op:0.6});if(e.t<=0){e.st='run';e.chCd=rand(5,8);}}
+   else if(e.st==='jump'){vx=e.ldx*e.spd*1.7;vz=e.ldz*e.spd*1.7;if(e.landed){e.st='run';e.slamCd=rand(6,8);slam(e);if(e.enraged)timers.push({t:0.45,fn:()=>{if(!e.dead)slamAt(e.g.position.x,e.g.position.z,e.dmg*0.7,0x6a8aff);}});}}
+   else if(!none){if(e.chCd<=0&&d>7&&d<28){e.st='wind';e.t=0.75;voice(e,'atk');}
+    else if(e.slamCd<=0&&d<14&&e.onG){e.st='jump';e.vy=12.5;e.onG=false;e.ldx=dx;e.ldz=dz;voice(e,'atk');}
+    else if(e.thrCd<0.6&&d>6&&e.thrCd>0)e.windR=1-e.thrCd/0.6;
+    else if(e.thrCd<=0&&d>6){e.thrCd=rand(2.8,3.8);e.lunge=1;const a0=Math.atan2(dz,dx);for(let k=-1;k<=1;k++){const a=a0+k*0.18;fireball(e,Math.cos(a),Math.sin(a),24,1.6,tg,'rock');}}}
+   if(e.sumCd<=0){e.sumCd=14;for(let i=0;i<3;i++){const a=i/3*TAU;const sx=gp.x+Math.cos(a)*5,sz=gp.z+Math.sin(a)*5;if(!insideObstacle(sx,sz,0.6))spawnEnemy('oni',clamp(sx,-A+2,A-2),clamp(sz,-A+2,A-2));}}
   }else if(ai==='lemure'){
    const w=Math.sin(performance.now()/180+e.phase*3)*0.6;vx=(dx-dz*w)*e.spd;vz=(dz+dx*w)*e.spd;e.ty=py+0.3;e.y+=(e.ty-e.y)*Math.min(1,dt*3);
    if(!none&&d<1.6&&Math.abs(e.y-py)<1.8){lemureBoom(e);continue;}
@@ -1838,7 +1939,7 @@ function hostEnemies(dt){
    if(!none&&e.boltCd>0&&e.boltCd<0.7)e.windR=1-e.boltCd/0.7;
    if(e.boltCd<=0&&!none){e.boltCd=rand(3.2,4.4);e.lunge=1;voice(e,'atk');for(const t of T)strikeMark(t.x+rand(-1.2,1.2),t.z+rand(-1.2,1.2),e.dmg,true);for(let k=0;k<2+Math.floor(wave/10);k++)strikeMark(px+rand(-9,9),pz+rand(-9,9),e.dmg,true);}
    if(e.t<=0&&!none&&d<42){e.t=rand(2.6,3.6);const a0=Math.atan2(dz,dx);for(let k=-1;k<=1;k++){const a=a0+k*0.15;fireball(e,Math.cos(a),Math.sin(a),22,1.3,tg,'bolt');}}
-   if(e.sumCd<=0){e.sumCd=13;for(let i=0;i<3;i++)spawnEnemy('harpy',clamp(gp.x+rand(-5,5),-A+2,A-2),clamp(gp.z+rand(-5,5),-A+2,A-2));}
+   if(e.sumCd<=0){e.sumCd=13;for(let i=0;i<3;i++)spawnEnemy(e.C.summon||'harpy',clamp(gp.x+rand(-5,5),-A+2,A-2),clamp(gp.z+rand(-5,5),-A+2,A-2));}
    e.y+=(e.ty-e.y)*Math.min(1,dt*1.5);
   }else if(ai==='bossPluto'){
    e.sumCd-=dt;e.tpCd=(e.tpCd===undefined?6:e.tpCd)-dt;e.poolCd=(e.poolCd===undefined?4:e.poolCd)-dt;e.swCd=(e.swCd===undefined?5:e.swCd)-dt;
@@ -1846,7 +1947,8 @@ function hostEnemies(dt){
    if(e.poolCd<=0&&!none){e.poolCd=rand(4,6);for(let k=0;k<3;k++)acidPool(px+rand(-4,4),pz+rand(-4,4),true,'soul');}
    if(!none&&d<9&&e.swCd>0&&e.swCd<0.6)e.windR=1-e.swCd/0.6;
    if(e.swCd<=0&&d<9&&!none){e.swCd=rand(6,8);e.lunge=1;voice(e,'atk');slamAt(gp.x,gp.z,e.dmg*0.9,0xb04aff);if(NET.mode==='host')NET.send({t:'sl',x:gp.x,z:gp.z,d:e.dmg*0.9,c:0xb04aff});}
-   if(e.t<=0&&d>8&&!none){e.t=rand(2.2,3);const a0=Math.atan2(dz,dx);for(let k=-2;k<=2;k++){const a=a0+k*0.16;fireball(e,Math.cos(a),Math.sin(a),16,1.2,tg,'soul');}}
+   if(e.t<=0&&d>8&&!none){e.t=rand(2.2,3);const a0=Math.atan2(dz,dx);for(let k=-2;k<=2;k++){const a=a0+k*0.16;fireball(e,Math.cos(a),Math.sin(a),16,1.2,tg,e.C.pk||'soul');}}
+   if(e.sumCd<=0&&e.C.summon){e.sumCd=12;for(const t of e.C.summon)spawnEnemy(t,clamp(gp.x+rand(-5,5),-A+2,A-2),clamp(gp.z+rand(-5,5),-A+2,A-2));}
    if(e.sumCd<=0){e.sumCd=12;for(let i=0;i<2;i++)spawnEnemy('legion',clamp(gp.x+rand(-5,5),-A+2,A-2),clamp(gp.z+rand(-5,5),-A+2,A-2));for(let i=0;i<3;i++)spawnEnemy('lemure',clamp(gp.x+rand(-4,4),-A+2,A-2),clamp(gp.z+rand(-4,4),-A+2,A-2));}
   }
   // climb after players standing on cover
@@ -1921,7 +2023,7 @@ $('#hostBtn').onclick=()=>netHost();$('#joinBtn').onclick=()=>netJoin();
 $('#localTest').onclick=()=>{NET.local=!NET.local;$('#localTest').textContent=NET.local?'โหมดทดสอบ: เปิด (กดเพื่อกลับไปออนไลน์จริง)':'โหมดทดสอบหลายแท็บในเครื่องเดียว';
  if(DIR.browse){try{DIR.browse.destroy();}catch(e){}DIR.browse=null;}if(DIR.peer){try{DIR.peer.destroy();}catch(e){}DIR.peer=null;}DIR.isDir=false;DIR.conn=null;DIR.becoming=false;
  if(NET.mode)netClose();showEntry(NET.local?'โหมดทดสอบ: เปิดเกมนี้หลายแท็บ แล้วสร้างห้อง/เข้าห้องได้เหมือนออนไลน์':'');};
-$('#coopStart').onclick=()=>{if(NET.mode!=='host')return;if([...MATES.values()].some(m=>!m.ready))return;NET.started=true;dirSendReg();NET.send({t:'start',lv:LEVEL});startGame();};
+$('#coopStart').onclick=()=>{if(NET.mode!=='host')return;if([...MATES.values()].some(m=>!m.ready))return;NET.started=true;dirSendReg();NET.send({t:'start',lv:LEVEL,df:save.diff||0});startGame();};
 $('#readyBtn').onclick=()=>{if(NET.mode!=='client'||!NET.joined)return;NET.ready=!NET.ready;NET.send({t:'lrdy',v:NET.ready?1:0});renderRoom();S.pick(NET.ready?900:600);};
 $('#leaveBtn').onclick=()=>{if(NET.mode){NET.send({t:'bye'});netClose();}showEntry('ออกจากห้องแล้ว');};
 $('#coopBack').onclick=()=>{if(NET.mode){NET.send({t:'bye'});netClose();}showMenu();};
@@ -1967,15 +2069,17 @@ function lobbyScene(dt){LOBBY.t+=dt;const home=LOBBY.mode==='home',asp=innerWidt
 function renderRoomPick(){const box=$('#roomPick');if(!box)return;
  const chars=CHARS.filter(c=>save.chars.includes(c.id)).map(c=>`<button class="${save.char===c.id?'on':''}" data-c="${c.id}" title="${c.name}">${c.icon}</button>`).join('');
  const perks=PERKS.map(p=>`<button class="${save.perk===p.id?'on':''}" data-p="${p.id}" title="${p.name} Lv${perkLv(p.id)}">${p.icon}</button>`).join('');
- const lv=[1,2].map(l=>`<button class="lvb ${LEVEL===l?'on':''}" data-l="${l}" ${NET.mode!=='host'||l>save.lvOpen?'disabled':''}>ด่าน ${l}</button>`).join('');
- box.innerHTML=`<div class="grp"><span>ตัวละคร</span>${chars}</div><div class="grp"><span>อาชีพ</span>${perks}</div><div class="grp"><span>${NET.mode==='host'?'ด่าน':'ด่าน (หัวห้องเลือก)'}</span>${lv}</div>`;
+ const lv=LV_IDS.map(l=>`<button class="lvb ${LEVEL===l?'on':''}" data-l="${l}" ${NET.mode!=='host'||l>save.lvOpen?'disabled':''}>ด่าน ${l}</button>`).join('');
+ const dsel=NET.mode==='host'?(save.diff||0):(NET.hostDiff||0);const df=DIFFS.map((D,i)=>`<button class="lvb ${dsel===i?'on':''}" data-df="${i}" ${NET.mode!=='host'||i>save.diffOpen?'disabled':''}>${D.ic} ${D.n}</button>`).join('');
+ box.innerHTML=`<div class="grp"><span>ตัวละคร</span>${chars}</div><div class="grp"><span>อาชีพ</span>${perks}</div><div class="grp"><span>${NET.mode==='host'?'ด่าน':'ด่าน (หัวห้องเลือก)'}</span>${lv}</div><div class="grp"><span>ความยาก</span>${df}</div>`;
+ box.querySelectorAll('[data-df]').forEach(b=>b.onclick=()=>{if(NET.mode!=='host')return;save.diff=+b.dataset.df;persist();broadcastRoster();renderRoom();});
  box.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{save.char=b.dataset.c;persist();sendMyLook();renderRoom();});
  box.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{save.perk=b.dataset.p;persist();sendMyLook();renderRoom();});
  box.querySelectorAll('[data-l]').forEach(b=>b.onclick=async()=>{if(NET.mode!=='host')return;await setLevel(+b.dataset.l);save.level=LEVEL;persist();broadcastRoster();});}
 /* ======================= LOOP ======================= */
 let menuT=0;const menuCats=[];
 function menuScene(dt){menuT+=dt;
- if(!menuCats.length){(LEVEL===2?[['legion',-4.2,-7.5],['archer',-1.8,-8.6],['gladiator',0.6,-7.8],['harpy',3.0,-8.8],['centurion',5.6,-8.2],['minotaur',-6.8,-9.6],['bossMars',2.2,-17]]:[['tabby',-4.2,-7.5],['siamese',-1.8,-8.6],['black',0.6,-7.8],['khao',3.0,-8.8],['korat',5.6,-8.2],['persian',-6.8,-9.6],['boss',2.2,-17]]).forEach(([t,x,z],i)=>{const m=makeCat(t);m.g.position.set(x,0,z);m.g.rotation.y=Math.atan2(-x*0.3,8);scene.add(m.g);m.menuI=i;menuCats.push(m);});}
+ if(!menuCats.length){(LEVEL===3?[['oni',-4.2,-7.5],['ninja',-1.8,-8.6],['kitsune',0.6,-7.8],['tengu',3.0,-8.8],['samurai',5.6,-8.2],['kasa',-6.8,-9.6],['bossOni',2.2,-17]]:LEVEL===2?[['legion',-4.2,-7.5],['archer',-1.8,-8.6],['gladiator',0.6,-7.8],['harpy',3.0,-8.8],['centurion',5.6,-8.2],['minotaur',-6.8,-9.6],['bossMars',2.2,-17]]:[['tabby',-4.2,-7.5],['siamese',-1.8,-8.6],['black',0.6,-7.8],['khao',3.0,-8.8],['korat',5.6,-8.2],['persian',-6.8,-9.6],['boss',2.2,-17]]).forEach(([t,x,z],i)=>{const m=makeCat(t);m.g.position.set(x,0,z);m.g.rotation.y=Math.atan2(-x*0.3,8);scene.add(m.g);m.menuI=i;menuCats.push(m);});}
  camera.position.set(Math.sin(menuT*0.15)*1.2,1.25,1.5);camera.rotation.set(0.02,Math.sin(menuT*0.1)*0.1,0);camera.fov=58;camera.updateProjectionMatrix();vm.visible=false;
  menuCats.forEach((m,i)=>{m.anim(dt,{speed:0,t:menuT+i*1.7,scale:m.inner.scale.x,crouch:m===menuCats[2]&&Math.sin(menuT*0.7)>0.6});m.g.rotation.y=Math.atan2(-m.g.position.x*0.3,8)+Math.sin(menuT*0.4+i)*0.25;});}
 function clearMenuCats(){menuCats.forEach(m=>disposeCat(m));menuCats.length=0;}
@@ -1989,7 +2093,7 @@ function frame(now){const rawDt=(now-lastTime)/1000,dt=Math.min(0.05,rawDt);last
  if(window.__noRender){}else if(window.__noPost)renderer.render(scene,camera);else post.render(dt);
  requestAnimationFrame(frame);}
 setMusic(save.music);applyQuality();renderer.shadowMap.needsUpdate=true;W.bakeEnv();showMenu();$('#loading').hidden=true;requestAnimationFrame(frame);
-if(save.level===2&&save.lvOpen>=2)setLevel(2).then(()=>{if(state==='menu')renderMenuAll();});
+if(save.level>1&&save.lvOpen>=save.level)setLevel(save.level).then(()=>{if(state==='menu')renderMenuAll();});
 if(/[?&]dbg/.test(location.search))window.__dbg={keys,VMA,setLevel,gunModels,get vm(){return vm},get LEVEL(){return LEVEL},get strikes(){return strikes},get P(){return P},get enemies(){return enemies},spawnEnemy,camera,scene,renderer,startGame,get state(){return state},set state(v){state=v},get wave(){return wave},set queue(v){queue=v},set firing(v){firing=v},get kills(){return kills},get queue(){return queue},get spawnT(){return spawnT},get timeScale(){return timeScale},hitE,W,GUNS,switchGun,useAbility,triggerZed,melee,CHARS,save,rec,newRun,get zedT(){return zedT},get timeScaleV(){return timeScale},startReload,openUpgrade,pickUp,rec,get upOpts(){return upOpts},get coinsRun(){return coinsRun},set coinsRun(v){coinsRun=v},get projs(){return projs},get eprojs(){return eprojs},get pools(){return pools},get post(){return post},get NET(){return NET},get DIR(){return DIR},get MATES(){return MATES},tick(n,dt=1/60){for(let i=0;i<n;i++){if(window.__forcePlay&&state!=='play'){hideAll();state='play';}ambient(dt,performance.now());if(state==='play')update(dt);}if(P)updateHud();return [state,wave,enemies.filter(e=>!e.dead).length,queue.length];},snap(){if(window.__noPost)renderer.render(scene,camera);else post.render(0.016);return renderer.domElement.toDataURL('image/jpeg',0.85);}};
 if(/[?&]mock/.test(location.search))NET.local=true;
 (()=>{const m=/[#&]r=([A-Z0-9]{4,6})/i.exec(location.hash);if(!m)return;openCoop();$('#joinCode').value=m[1].toUpperCase();netStatus('เพื่อนชวนเข้าห้อง '+m[1].toUpperCase()+' ใส่ชื่อแล้วกด "เข้าร่วม" ได้เลย');try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}})();
